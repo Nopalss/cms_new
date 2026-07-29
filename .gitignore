@@ -1,0 +1,5 @@
+# Secrets & Credentials
+includes/firebase_credentials.json
+firebase_credentials.json
+*.json.secret
+.env
