@@ -14,29 +14,37 @@ try {
 
     if ($job_type === "Instalasi") {
 
-        $sql = "SELECT s.*, c.*,
-                   EXISTS (
-                       SELECT 1 FROM issues_report ir
-                       WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'
-                   ) AS has_issue
+        $sql = "SELECT s.*,
+                       COALESCE(c.name, reg.nama, 'Pelanggan Baru') AS name,
+                       COALESCE(c.perumahan, reg.perumahan, '-') AS perumahan,
+                       COALESCE(c.location, reg.location, '-') AS location,
+                       COALESCE(c.sharelock, reg.sharelock, '') AS sharelock,
+                       COALESCE(c.phone, reg.no_hp, '') AS phone,
+                       c.phone_contact, c.paket_internet,
+                       EXISTS (
+                           SELECT 1 FROM issues_report ir
+                           WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'
+                       ) AS has_issue
             FROM schedules s
             LEFT JOIN queue_scheduling q ON s.queue_id = q.queue_id
             LEFT JOIN customers c ON q.netpay_id = c.netpay_id
+            LEFT JOIN request_ikr rikr ON s.queue_id = rikr.queue_id
+            LEFT JOIN register reg ON rikr.registrasi_id = reg.registrasi_id
             WHERE s.schedule_id = :schedule_id
             LIMIT 1";
     } elseif ($job_type === "Service" || $job_type === "Maintenance" || empty($job_type)) {
 
         $sql = "SELECT s.*,
                        COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS name,
-                       COALESCE(c.perumahan, r.perumahan, '-') AS perumahan,
-                       COALESCE(c.location, r.location, '-') AS location,
-                       COALESCE(c.sharelock, r.sharelock, '') AS sharelock,
-                       c.phone, c.phone_contact, c.netpay_id,
+                       COALESCE(NULLIF(TRIM(r.perumahan), ''), c.perumahan, '-') AS perumahan,
+                       COALESCE(NULLIF(TRIM(r.location), ''), c.location, '-') AS location,
+                       COALESCE(NULLIF(TRIM(r.sharelock), ''), c.sharelock, '') AS sharelock,
+                       c.phone, c.phone_contact, q.netpay_id,
                        r.type_issue, r.server, r.deskripsi_issue AS aduan_pelanggan, r.verifikasi_noc,
-                   EXISTS (
-                       SELECT 1 FROM issues_report ir
-                       WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'
-                   ) AS has_issue
+                       EXISTS (
+                           SELECT 1 FROM issues_report ir
+                           WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'
+                       ) AS has_issue
             FROM schedules s
             LEFT JOIN queue_scheduling q ON s.queue_id = q.queue_id
             LEFT JOIN request_maintenance r ON s.queue_id = r.queue_id
@@ -45,11 +53,17 @@ try {
             LIMIT 1";
     } elseif ($job_type === "Dismantle") {
 
-        $sql = "SELECT s.*, c.*, r.type_dismantle as type_issue,
-                   EXISTS (
-                       SELECT 1 FROM issues_report ir
-                       WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'
-                   ) AS has_issue
+        $sql = "SELECT s.*,
+                       COALESCE(c.name, '-') AS name,
+                       COALESCE(c.perumahan, '-') AS perumahan,
+                       COALESCE(c.location, '-') AS location,
+                       COALESCE(c.sharelock, '') AS sharelock,
+                       c.phone, c.phone_contact, q.netpay_id,
+                       r.type_dismantle as type_issue,
+                       EXISTS (
+                           SELECT 1 FROM issues_report ir
+                           WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'
+                       ) AS has_issue
             FROM schedules s
             LEFT JOIN queue_scheduling q ON s.queue_id = q.queue_id
             LEFT JOIN request_dismantle r ON s.queue_id = r.queue_id
@@ -629,6 +643,18 @@ $show_bar        = $show_actions && ($is_pending_resh || $is_actived) && empty($
                         <!-- customer name -->
                         <div class="dtl-cust-name">
                             <?= htmlspecialchars(isset($row['name']) ? $row['name'] : '-') ?>
+                        </div>
+
+                        <!-- address box -->
+                        <div style="margin-top: 10px; margin-bottom: 12px; padding: 10px 14px; background: #F8FAFC; border-radius: 10px; border: 1.5px solid var(--border);">
+                            <div style="font-size: 13px; font-weight: 800; color: var(--text1); display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
+                                <i class="fa fa-home" style="color: #2563EB; font-size: 14px; margin-top: 2px;"></i>
+                                <span><?= htmlspecialchars(isset($row['perumahan']) && trim($row['perumahan']) !== '' ? $row['perumahan'] : '-') ?></span>
+                            </div>
+                            <div style="font-size: 12px; font-weight: 600; color: var(--text2); display: flex; align-items: flex-start; gap: 8px;">
+                                <i class="fa fa-map-marker-alt" style="color: #EF4444; font-size: 14px; margin-top: 2px;"></i>
+                                <span><?= htmlspecialchars(isset($row['location']) && trim($row['location']) !== '' ? $row['location'] : '-') ?></span>
+                            </div>
                         </div>
 
                         <!-- date + time pills -->
