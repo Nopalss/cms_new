@@ -137,7 +137,7 @@ try {
 
         // Ambil PIC teknisi dari ikr_report_pic
         $stmtPic = $pdo->prepare("
-            SELECT t.nama
+            SELECT t.name
             FROM ikr_report_pic irp
             JOIN technician t ON t.tech_id = irp.tech_id
             WHERE irp.ikr_id = :ikr_id
