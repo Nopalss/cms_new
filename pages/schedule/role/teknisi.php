@@ -1533,9 +1533,10 @@ $initials = substr($initials, 0, 2);
                     }
 
                     // WhatsApp
-                    $phone_number = !empty($s['phone_contact']) ? $s['phone_contact'] : $s['phone'];
-                    $phone = preg_replace('/[^0-9]/', '', $phone_number);
-                    if (substr($phone, 0, 1) === '0') {
+                    $raw_phone_number = !empty($s['phone_contact']) ? $s['phone_contact'] : ($s['phone'] ?? '');
+                    $phone_number = !empty($raw_phone_number) ? $raw_phone_number : '-';
+                    $phone = preg_replace('/[^0-9]/', '', (string)$raw_phone_number);
+                    if (!empty($phone) && substr($phone, 0, 1) === '0') {
                         $phone = '62' . substr($phone, 1);
                     }
                     $message  = "Halo Bapak/Ibu {$s['name']},\n\n";
@@ -1543,7 +1544,7 @@ $initials = substr($initials, 0, 2);
                     $message .= "Saya ingin melakukan kunjungan untuk pekerjaan *{$jt}* hari ini.\n";
                     $message .= "Alamat: {$s['perumahan']} {$s['location']}\n";
                     $message .= "Mohon konfirmasi apakah Bapak/Ibu tersedia.\n\nTerima kasih";
-                    $wa_url   = "https://wa.me/{$phone}?text=" . urlencode($message);
+                    $wa_url   = !empty($phone) ? "https://wa.me/{$phone}?text=" . urlencode($message) : '#';
 
                     // Action logic
                     $is_pending_resh   = in_array($st, ['Pending', 'Rescheduled']);
