@@ -15,12 +15,13 @@ try {
     if ($job_type === "Instalasi") {
 
         $sql = "SELECT s.*,
-                       COALESCE(c.name, reg.nama, 'Pelanggan Baru') AS name,
+                       COALESCE(c.name, reg.name, 'Pelanggan Baru') AS name,
                        COALESCE(c.perumahan, reg.perumahan, '-') AS perumahan,
                        COALESCE(c.location, reg.location, '-') AS location,
                        COALESCE(c.sharelock, reg.sharelock, '') AS sharelock,
-                       COALESCE(c.phone, reg.no_hp, '') AS phone,
-                       c.phone_contact, c.paket_internet,
+                       COALESCE(c.phone, reg.phone, '') AS phone,
+                       c.phone_contact,
+                       COALESCE(NULLIF(c.paket_internet, ''), reg.paket_internet) AS paket_internet,
                        EXISTS (
                            SELECT 1 FROM issues_report ir
                            WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'
