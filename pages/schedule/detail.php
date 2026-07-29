@@ -18,7 +18,7 @@ try {
                        COALESCE(c.name, reg.name, 'Pelanggan Baru') AS name,
                        COALESCE(c.perumahan, reg.perumahan, '-') AS perumahan,
                        COALESCE(c.location, reg.location, '-') AS location,
-                       COALESCE(c.sharelock, reg.sharelock, '') AS sharelock,
+                       COALESCE(c.sharelock, '') AS sharelock,
                        COALESCE(c.phone, reg.phone, '') AS phone,
                        c.phone_contact,
                        COALESCE(NULLIF(c.paket_internet, ''), reg.paket_internet) AS paket_internet,
