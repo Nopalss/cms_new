@@ -9,15 +9,17 @@ try {
     if (!$id) redirect("pages/service_report/");
 
     $stmt = $pdo->prepare("
-        SELECT 
-            s.schedule_id, s.tech_id, s.queue_id,
-            c.*,
+        SELECT s.*, q.netpay_id,
+            COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS name,
+            COALESCE(c.perumahan, rm.perumahan, '-') AS perumahan,
+            COALESCE(c.location, rm.location, '-') AS location,
+            c.phone, c.phone_contact,
             cd.modem_sn, cd.device_brand,
             rm.verifikasi_noc, rm.type_issue, rm.deskripsi_issue,
             (SELECT sn FROM ikr_report WHERE netpay_id = c.netpay_id AND sn IS NOT NULL AND TRIM(sn) <> '' ORDER BY ikr_key DESC LIMIT 1) AS ikr_sn
         FROM schedules s
         JOIN queue_scheduling q ON s.queue_id = q.queue_id
-        JOIN customers c ON q.netpay_id = c.netpay_id
+        LEFT JOIN customers c ON q.netpay_id = c.netpay_id
         LEFT JOIN customer_details cd ON c.netpay_id = cd.netpay_id
         LEFT JOIN request_maintenance rm ON q.queue_id = rm.queue_id
         WHERE s.schedule_id = :id
@@ -462,7 +464,10 @@ require __DIR__ . '/../../includes/navbar.php';
         phone_contact: '<?= $phone_wa ?>'
     };
 
-    var REQUIRED_FIELDS = ['problem', 'action', 'part', 'ont_bef', 'red_bef', 'red_aft', 'keterangan'];
+    var IS_NON_CUSTOMER = <?= empty($customer['netpay_id']) ? 'true' : 'false' ?>;
+    var REQUIRED_FIELDS = IS_NON_CUSTOMER 
+        ? ['problem', 'action', 'part'] 
+        : ['problem', 'action', 'part', 'ont_bef', 'red_bef', 'red_aft', 'keterangan'];
 
     document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.validate-field').forEach(function(el) {

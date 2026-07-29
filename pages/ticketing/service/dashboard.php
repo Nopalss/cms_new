@@ -455,32 +455,72 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     </div>
     <div class="modal-body" style="padding: 16px 20px;">
       
-      <div class="field-row" style="margin-bottom: 10px;">
-        <div class="field" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Netpay ID</label>
-          <input type="text" id="f_netpay_id" placeholder="Ketik lalu Enter/klik di luar buat cari data">
-          <div id="netpayInfo" style="font-size:11px;margin-top:2px;color:var(--text-muted);min-height:14px;"></div>
-        </div>
-        <div class="field" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Nama Pelanggan</label>
-          <input type="text" id="f_nama" placeholder="Otomatis terisi..." disabled>
-        </div>
-      </div>
-
-      <div class="field-row" style="margin-bottom: 10px;">
-        <div class="field" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">No Tlp Contact</label>
-          <input type="text" id="f_no_tlp" placeholder="mis. 0895428474630">
-        </div>
-        <div class="field" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Server</label>
-          <input type="text" id="f_server" placeholder="mis. 251">
+      <!-- Radio button switch for ticket type -->
+      <div class="field" style="margin-bottom: 12px;">
+        <label style="margin-bottom: 6px; font-weight: 700;">Tipe Tiket Service</label>
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
+            <input type="radio" name="f_ticket_type" value="customer" checked onchange="toggleTicketTypeFields(this.value)"> 👤 Pelanggan (Netpay ID)
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
+            <input type="radio" name="f_ticket_type" value="non_customer" onchange="toggleTicketTypeFields(this.value)"> 🏗️ Non-Pelanggan / Infrastruktur (Tiang/Kabel)
+          </label>
         </div>
       </div>
 
-      <div class="field" style="margin-bottom: 10px;">
-        <label style="margin-bottom: 4px;">Alamat</label>
-        <input type="text" id="f_alamat" placeholder="Otomatis terisi..." disabled>
+      <!-- Customer fields container -->
+      <div id="groupCustomerFields">
+        <div class="field-row" style="margin-bottom: 10px;">
+          <div class="field" style="margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">Netpay ID</label>
+            <input type="text" id="f_netpay_id" placeholder="Ketik lalu Enter/klik di luar buat cari data">
+            <div id="netpayInfo" style="font-size:11px;margin-top:2px;color:var(--text-muted);min-height:14px;"></div>
+          </div>
+          <div class="field" style="margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">Nama Pelanggan</label>
+            <input type="text" id="f_nama" placeholder="Otomatis terisi..." disabled>
+          </div>
+        </div>
+
+        <div class="field-row" style="margin-bottom: 10px;">
+          <div class="field" style="margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">No Tlp Contact</label>
+            <input type="text" id="f_no_tlp" placeholder="mis. 0895428474630">
+          </div>
+          <div class="field" style="margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">Server</label>
+            <input type="text" id="f_server" placeholder="mis. 251">
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom: 10px;">
+          <label style="margin-bottom: 4px;">Alamat</label>
+          <input type="text" id="f_alamat" placeholder="Otomatis terisi..." disabled>
+        </div>
+      </div>
+
+      <!-- Non-customer fields container -->
+      <div id="groupNonCustomerFields" style="display: none;">
+        <div class="field-row" style="margin-bottom: 10px;">
+          <div class="field" style="margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">Perumahan / Wilayah <span style="color:var(--cancel-text)">*</span></label>
+            <input type="text" id="f_non_perumahan" placeholder="mis. BCA 2">
+          </div>
+          <div class="field" style="margin-bottom: 0;">
+            <label style="margin-bottom: 4px;">Server Area</label>
+            <input type="text" id="f_non_server" placeholder="mis. 251 (Opsional)">
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom: 10px;">
+          <label style="margin-bottom: 4px;">Alamat Detail / Lokasi <span style="color:var(--cancel-text)">*</span></label>
+          <input type="text" id="f_non_alamat" placeholder="mis. Tiang Listrik / FO Blok C No. 12">
+        </div>
+
+        <div class="field" style="margin-bottom: 10px;">
+          <label style="margin-bottom: 4px;">Link Sharelock (Google Maps)</label>
+          <input type="text" id="f_non_sharelock" placeholder="mis. https://maps.app.goo.gl/... (Opsional)">
+        </div>
       </div>
 
       <div class="field-row" style="margin-bottom: 10px;">
@@ -1117,11 +1157,24 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     }
   }
 
+  function toggleTicketTypeFields(type) {
+    const custGroup = document.getElementById('groupCustomerFields');
+    const nonCustGroup = document.getElementById('groupNonCustomerFields');
+    if (type === 'non_customer') {
+      custGroup.style.display = 'none';
+      nonCustGroup.style.display = 'block';
+    } else {
+      custGroup.style.display = 'block';
+      nonCustGroup.style.display = 'none';
+    }
+  }
+
   async function handleSubmitTicket() {
-    const payload = {
-      netpay_id:       document.getElementById('f_netpay_id').value.trim(),
-      phone_contact:   document.getElementById('f_no_tlp').value.trim(),
-      server:          document.getElementById('f_server').value.trim(),
+    const ticketTypeRadio = document.querySelector('input[name="f_ticket_type"]:checked');
+    const ticketType = ticketTypeRadio ? ticketTypeRadio.value : 'customer';
+
+    let payload = {
+      ticket_type: ticketType,
       aduan_pelanggan: document.getElementById('f_aduan').value.trim(),
       verifikasi_noc:  document.getElementById('f_verifikasi').value.trim(),
       tim_id:          document.getElementById('f_tim').value,
@@ -1129,11 +1182,30 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
       noc_id:          document.getElementById('f_noc').value,
     };
 
-    for (const [key, val] of Object.entries(payload)) {
-      if (!val) {
-        showToast('Field "' + key + '" belum diisi', true);
+    if (ticketType === 'non_customer') {
+      payload.perumahan = document.getElementById('f_non_perumahan').value.trim();
+      payload.location  = document.getElementById('f_non_alamat').value.trim();
+      payload.sharelock = document.getElementById('f_non_sharelock').value.trim();
+      payload.server    = document.getElementById('f_non_server').value.trim();
+
+      if (!payload.perumahan || !payload.location) {
+        showToast('Perumahan dan Alamat Detail harus diisi', true);
         return;
       }
+    } else {
+      payload.netpay_id     = document.getElementById('f_netpay_id').value.trim();
+      payload.phone_contact = document.getElementById('f_no_tlp').value.trim();
+      payload.server        = document.getElementById('f_server').value.trim();
+
+      if (!payload.netpay_id) {
+        showToast('Netpay ID belum diisi', true);
+        return;
+      }
+    }
+
+    if (!payload.aduan_pelanggan || !payload.verifikasi_noc || !payload.tim_id || !payload.tanggal_service || !payload.noc_id) {
+      showToast('Mohon lengkapi semua field yang wajib diisi', true);
+      return;
     }
 
     const btn = document.getElementById('submitModal');

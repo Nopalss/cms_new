@@ -5,13 +5,13 @@ $tim_id  = $_SESSION['tim_id'] ?? '';
 $sql = "
 SELECT
     s.*,
-    c.location,
+    COALESCE(c.location, rm.location, '-') AS location,
     c.phone,
     c.phone_contact,
-    COALESCE(NULLIF(c.phone_contact, ''), c.phone) AS no_tlp,
-    c.name,
-    c.perumahan,
-    c.sharelock,
+    COALESCE(NULLIF(c.phone_contact, ''), c.phone, '-') AS no_tlp,
+    COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS name,
+    COALESCE(c.perumahan, rm.perumahan, '-') AS perumahan,
+    COALESCE(c.sharelock, rm.sharelock, '') AS sharelock,
     COALESCE(NULLIF(c.paket_internet, ''), reg.paket_internet) AS paket_internet,
     rm.server,
     rm.deskripsi_issue AS aduan_pelanggan,
@@ -33,7 +33,7 @@ FROM schedules s
 JOIN queue_scheduling q
 ON s.queue_id=q.queue_id
 
-JOIN customers c
+LEFT JOIN customers c
 ON q.netpay_id=c.netpay_id
 
 LEFT JOIN request_maintenance rm
@@ -52,7 +52,7 @@ AND (
     s.tech_id = :tech_id
     OR s.tech_id = :tim_id
 )
-ORDER BY CASE WHEN s.status IN ('Done', 'Cancelled') THEN 1 ELSE 0 END ASC, c.perumahan ASC, s.time ASC
+ORDER BY CASE WHEN s.status IN ('Done', 'Cancelled') THEN 1 ELSE 0 END ASC, COALESCE(c.perumahan, rm.perumahan, '-') ASC, s.time ASC
 ";
 
 $stmt = $pdo->prepare($sql);

@@ -26,7 +26,13 @@ try {
             LIMIT 1";
     } elseif ($job_type === "Service" || $job_type === "Maintenance" || empty($job_type)) {
 
-        $sql = "SELECT s.*, c.*, r.type_issue, r.server, r.deskripsi_issue AS aduan_pelanggan, r.verifikasi_noc,
+        $sql = "SELECT s.*,
+                       COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS name,
+                       COALESCE(c.perumahan, r.perumahan, '-') AS perumahan,
+                       COALESCE(c.location, r.location, '-') AS location,
+                       COALESCE(c.sharelock, r.sharelock, '') AS sharelock,
+                       c.phone, c.phone_contact, c.netpay_id,
+                       r.type_issue, r.server, r.deskripsi_issue AS aduan_pelanggan, r.verifikasi_noc,
                    EXISTS (
                        SELECT 1 FROM issues_report ir
                        WHERE ir.schedule_id = s.schedule_id AND ir.status = 'Pending'

@@ -21,6 +21,7 @@ SANITIZE INPUT
 =====================================
 */
 
+$ticket_type     = sanitize($_POST['ticket_type'] ?? 'customer');
 $netpay_id       = sanitize($_POST['netpay_id'] ?? '');
 $server          = sanitize($_POST['server'] ?? '');
 $aduan_pelanggan = sanitize($_POST['aduan_pelanggan'] ?? '');
@@ -29,21 +30,37 @@ $tim_id          = sanitize($_POST['tim_id'] ?? '');
 $tanggal_service = sanitize($_POST['tanggal_service'] ?? '');
 $noc_id          = sanitize($_POST['noc_id'] ?? '');
 
+$perumahan       = sanitize($_POST['perumahan'] ?? '');
+$location        = sanitize($_POST['location'] ?? '');
+$sharelock       = sanitize($_POST['sharelock'] ?? '');
+
 /*
 =====================================
 VALIDASI
 =====================================
 */
 
-$required = compact(
-    'netpay_id',
-    'server',
-    'aduan_pelanggan',
-    'verifikasi_noc',
-    'tim_id',
-    'tanggal_service',
-    'noc_id'
-);
+if ($ticket_type === 'non_customer') {
+    $netpay_id = null;
+    $required = compact(
+        'perumahan',
+        'location',
+        'aduan_pelanggan',
+        'verifikasi_noc',
+        'tim_id',
+        'tanggal_service',
+        'noc_id'
+    );
+} else {
+    $required = compact(
+        'netpay_id',
+        'aduan_pelanggan',
+        'verifikasi_noc',
+        'tim_id',
+        'tanggal_service',
+        'noc_id'
+    );
+}
 
 foreach ($required as $field => $value) {
     if (empty($value)) {
@@ -57,8 +74,7 @@ foreach ($required as $field => $value) {
 
 /*
 =====================================
-GENERATE ID UNIK (pola sama kayak srv_id: prefix + timestamp,
-retry +1 detik kalau bentrok)
+GENERATE ID UNIK
 =====================================
 */
 
@@ -83,15 +99,16 @@ function generateUniqueId(PDO $pdo, string $table, string $column, string $prefi
 
 try {
 
-    // pastikan netpay_id valid (jangan cuma percaya hasil auto-fill di frontend)
-    $cust = $pdo->prepare("SELECT netpay_id FROM customers WHERE netpay_id = :netpay_id LIMIT 1");
-    $cust->execute([':netpay_id' => $netpay_id]);
-    if (!$cust->fetch()) {
-        echo json_encode([
-            'status' => false,
-            'message' => 'Netpay ID tidak ditemukan'
-        ]);
-        exit;
+    if (!empty($netpay_id)) {
+        $cust = $pdo->prepare("SELECT netpay_id FROM customers WHERE netpay_id = :netpay_id LIMIT 1");
+        $cust->execute([':netpay_id' => $netpay_id]);
+        if (!$cust->fetch()) {
+            echo json_encode([
+                'status' => false,
+                'message' => 'Netpay ID tidak ditemukan'
+            ]);
+            exit;
+        }
     }
 
     // pastikan tim_id valid
@@ -121,15 +138,12 @@ try {
         ':queue_id'  => $queue_id
     ]);
 
-    // 2. request_maintenance — detail komplain
-    // NOTE: type_issue di-hardcode dulu ("Maintenance"), karena form belum
-    // punya field kategori aduan. Kalau nanti mau dropdown jenis aduan
-    // (pakai tabel `type`), tinggal ganti value ini jadi dari input user.
+    // 2. request_maintenance — detail komplain + lokasi non-customer
     $stmt = $pdo->prepare("
         INSERT INTO request_maintenance
-            (rm_id, queue_id, type_issue, deskripsi_issue, server, verifikasi_noc, request_by)
+            (rm_id, queue_id, type_issue, deskripsi_issue, server, verifikasi_noc, request_by, perumahan, location, sharelock)
         VALUES
-            (:rm_id, :queue_id, :type_issue, :deskripsi_issue, :server, :verifikasi_noc, :request_by)
+            (:rm_id, :queue_id, :type_issue, :deskripsi_issue, :server, :verifikasi_noc, :request_by, :perumahan, :location, :sharelock)
     ");
     $stmt->execute([
         ':rm_id'           => $rm_id,
@@ -138,7 +152,10 @@ try {
         ':deskripsi_issue' => $aduan_pelanggan,
         ':server'          => $server,
         ':verifikasi_noc'  => $verifikasi_noc,
-        ':request_by'      => $noc_id
+        ':request_by'      => $noc_id,
+        ':perumahan'       => !empty($perumahan) ? $perumahan : null,
+        ':location'        => !empty($location) ? $location : null,
+        ':sharelock'       => !empty($sharelock) ? $sharelock : null,
     ]);
 
     // 3. schedules — assignment ke tim, target_status default "On Time"

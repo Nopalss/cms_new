@@ -61,7 +61,7 @@ try {
     $netpay_id = $sched['netpay_id'];
 
     // Update phone_contact jika diisi
-    if (!empty($phone_contact) && !empty($netpay_id)) {
+    if (!empty($netpay_id) && !empty($phone_contact)) {
         $stmtCust = $pdo->prepare("
             UPDATE customers
             SET phone_contact = :phone_contact,

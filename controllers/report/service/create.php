@@ -64,19 +64,33 @@ VALIDASI
 =====================================
 */
 
-$required = compact(
-    'srv_id',
-    'schedule_id',
-    'netpay_id',
-    'tanggal',
-    'problem',
-    'action',
-    'part',
-    'ont_bef',
-    'red_bef',
-    'red_aft',
-    'keterangan'
-);
+$is_non_customer = (empty($netpay_id) || $netpay_id === '-' || $netpay_id === 'NON_CUSTOMER');
+
+if ($is_non_customer) {
+    $netpay_id = null;
+    $required = compact(
+        'srv_id',
+        'schedule_id',
+        'tanggal',
+        'problem',
+        'action',
+        'part'
+    );
+} else {
+    $required = compact(
+        'srv_id',
+        'schedule_id',
+        'netpay_id',
+        'tanggal',
+        'problem',
+        'action',
+        'part',
+        'ont_bef',
+        'red_bef',
+        'red_aft',
+        'keterangan'
+    );
+}
 
 foreach ($required as $field => $value) {
     if (empty($value)) {
