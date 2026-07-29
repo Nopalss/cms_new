@@ -252,6 +252,59 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     box-shadow: 0 3px 6px rgba(0,0,0,0.1);
   }
 
+  /* Segmented Card Selector for Ticket Types */
+  .ticket-type-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .ticket-type-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--bg-body, #F8FAFC);
+    border: 1px dashed var(--border, #CBD5E1);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 0;
+    user-select: none;
+  }
+  .ticket-type-card:hover {
+    border-color: var(--primary, #2563EB);
+    background: #F1F5F9;
+    transform: translateY(-1px);
+  }
+  .ticket-type-card.active {
+    background: #EFF6FF;
+    border: 2px solid #2563EB;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+  }
+  .ticket-type-icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .ticket-type-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .ticket-type-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text, #0F172A);
+    line-height: 1.2;
+  }
+  .ticket-type-sub {
+    font-size: 10.5px;
+    color: var(--text-muted, #64748B);
+    margin-top: 3px;
+    line-height: 1.25;
+  }
+
   .btn-share-today {
     background: var(--accent);
     color: #fff;
@@ -455,15 +508,27 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     </div>
     <div class="modal-body" style="padding: 16px 20px;">
       
-      <!-- Radio button switch for ticket type -->
-      <div class="field" style="margin-bottom: 12px;">
-        <label style="margin-bottom: 6px; font-weight: 700;">Tipe Tiket Service</label>
-        <div style="display: flex; gap: 16px; align-items: center;">
-          <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-            <input type="radio" name="f_ticket_type" value="customer" checked onchange="toggleTicketTypeFields(this.value)"> 👤 Pelanggan (Netpay ID)
+      <!-- Segmented Card Selector for Ticket Types -->
+      <div style="margin-bottom: 14px;">
+        <label style="margin-bottom: 8px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block;">Tipe Tiket Service</label>
+        
+        <div class="ticket-type-selector">
+          <label class="ticket-type-card active" id="cardTypeCustomer" onclick="toggleTicketTypeFields('customer')">
+            <input type="radio" name="f_ticket_type" value="customer" checked style="display:none;">
+            <div class="ticket-type-icon">👤</div>
+            <div class="ticket-type-info">
+              <div class="ticket-type-title">Pelanggan</div>
+              <div class="ticket-type-sub">Aduan Pelanggan (Netpay ID)</div>
+            </div>
           </label>
-          <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-            <input type="radio" name="f_ticket_type" value="non_customer" onchange="toggleTicketTypeFields(this.value)"> 🏗️ Non-Pelanggan / Infrastruktur (Tiang/Kabel)
+
+          <label class="ticket-type-card" id="cardTypeNonCustomer" onclick="toggleTicketTypeFields('non_customer')">
+            <input type="radio" name="f_ticket_type" value="non_customer" style="display:none;">
+            <div class="ticket-type-icon">🏗️</div>
+            <div class="ticket-type-info">
+              <div class="ticket-type-title">Infrastruktur / Fasum</div>
+              <div class="ticket-type-sub">Tiang, FO, ODP (Tanpa Netpay ID)</div>
+            </div>
           </label>
         </div>
       </div>
@@ -1093,11 +1158,17 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
   async function openCreateModal() {
     await ensureDropdownsLoaded();
 
+    toggleTicketTypeFields('customer');
+
     document.getElementById('f_netpay_id').value = '';
     document.getElementById('f_nama').value = '';
     document.getElementById('f_no_tlp').value = '';
     document.getElementById('f_alamat').value = '';
     document.getElementById('f_server').value = '';
+    document.getElementById('f_non_perumahan').value = '';
+    document.getElementById('f_non_server').value = '';
+    document.getElementById('f_non_alamat').value = '';
+    document.getElementById('f_non_sharelock').value = '';
     document.getElementById('f_aduan').value = '';
     document.getElementById('f_verifikasi').value = '';
     document.getElementById('netpayInfo').textContent = '';
@@ -1160,12 +1231,23 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
   function toggleTicketTypeFields(type) {
     const custGroup = document.getElementById('groupCustomerFields');
     const nonCustGroup = document.getElementById('groupNonCustomerFields');
+    const cardCust = document.getElementById('cardTypeCustomer');
+    const cardNonCust = document.getElementById('cardTypeNonCustomer');
+
     if (type === 'non_customer') {
       custGroup.style.display = 'none';
       nonCustGroup.style.display = 'block';
+      if (cardCust) cardCust.classList.remove('active');
+      if (cardNonCust) cardNonCust.classList.add('active');
+      const radio = cardNonCust.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
     } else {
       custGroup.style.display = 'block';
       nonCustGroup.style.display = 'none';
+      if (cardCust) cardCust.classList.add('active');
+      if (cardNonCust) cardNonCust.classList.remove('active');
+      const radio = cardCust.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
     }
   }
 
