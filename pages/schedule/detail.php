@@ -15,6 +15,7 @@ try {
     if ($job_type === "Instalasi") {
 
         $sql = "SELECT s.*,
+                       COALESCE(c.netpay_id, q.netpay_id, '-') AS netpay_id,
                        COALESCE(c.name, reg.name, 'Pelanggan Baru') AS name,
                        COALESCE(c.perumahan, reg.perumahan, '-') AS perumahan,
                        COALESCE(c.location, reg.location, '-') AS location,
@@ -40,7 +41,7 @@ try {
                        COALESCE(NULLIF(TRIM(r.perumahan), ''), c.perumahan, '-') AS perumahan,
                        COALESCE(NULLIF(TRIM(r.location), ''), c.location, '-') AS location,
                        COALESCE(NULLIF(TRIM(r.sharelock), ''), c.sharelock, '') AS sharelock,
-                       c.phone, c.phone_contact, q.netpay_id,
+                       c.phone, c.phone_contact, COALESCE(c.netpay_id, q.netpay_id, '-') AS netpay_id,
                        r.type_issue, r.server, r.deskripsi_issue AS aduan_pelanggan, r.verifikasi_noc,
                        EXISTS (
                            SELECT 1 FROM issues_report ir
@@ -59,7 +60,7 @@ try {
                        COALESCE(c.perumahan, '-') AS perumahan,
                        COALESCE(c.location, '-') AS location,
                        COALESCE(c.sharelock, '') AS sharelock,
-                       c.phone, c.phone_contact, q.netpay_id,
+                       c.phone, c.phone_contact, COALESCE(c.netpay_id, q.netpay_id, '-') AS netpay_id,
                        r.type_dismantle as type_issue,
                        EXISTS (
                            SELECT 1 FROM issues_report ir
