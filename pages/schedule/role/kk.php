@@ -1094,13 +1094,10 @@ $actionDone = [
                                 . urlencode($s['perumahan']) . "+" . urlencode($s['location']);
                         }
 
-                        // WhatsApp$phone_number = !empty($s['phone_contact']) ? $s['phone_contact'] : $s['phone'];
-
-                        $phone_number = !empty($s['phone_contact']) ? $s['phone_contact'] : $s['phone'];
-
-                        $phone = preg_replace('/[^0-9]/', '', $phone_number);
-
-                        if (substr($phone, 0, 1) === '0') {
+                        // WhatsApp
+                        $phone_number = !empty($s['phone_contact']) ? $s['phone_contact'] : ($s['phone'] ?? '');
+                        $phone = preg_replace('/[^0-9]/', '', (string)$phone_number);
+                        if (!empty($phone) && substr($phone, 0, 1) === '0') {
                             $phone = '62' . substr($phone, 1);
                         }
                         $message  = "Halo Bapak/Ibu {$s['name']},\n\n";

@@ -136,8 +136,9 @@ if (!empty($row['sharelock'])) {
 }
 
 // WhatsApp
-$phone = preg_replace('/[^0-9]/', '', isset($row['phone_contact']) ? $row['phone_contact'] : $row['phone']);
-if (substr($phone, 0, 1) === '0') {
+$raw_phone_number = !empty($row['phone_contact']) ? $row['phone_contact'] : (isset($row['phone']) ? $row['phone'] : '');
+$phone = preg_replace('/[^0-9]/', '', (string)$raw_phone_number);
+if (!empty($phone) && substr($phone, 0, 1) === '0') {
     $phone = '62' . substr($phone, 1);
 }
 $show_actions    = (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin');

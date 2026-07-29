@@ -55,7 +55,7 @@ try {
 $cust_address = trim(($customer['perumahan'] ?? '') . ' ' . ($customer['location'] ?? ''));
 
 // Format phone ke WA internasional (sama seperti service report)
-$phone_raw = preg_replace('/[^0-9]/', '', $customer['phone_contact'] ?? $customer['phone']);
+$phone_raw = preg_replace('/[^0-9]/', '', (string)($customer['phone_contact'] ?? $customer['phone'] ?? ''));
 if ($phone_raw !== '' && substr($phone_raw, 0, 1) === '0') {
     $phone_wa = '62' . substr($phone_raw, 1);
 } else {

@@ -56,7 +56,7 @@ $ont_lama_default = !empty($customer['modem_sn']) ? $customer['modem_sn'] : (!em
 $problem_default  = !empty($customer['verifikasi_noc']) ? $customer['verifikasi_noc'] : (!empty($customer['type_issue']) ? $customer['type_issue'] : (!empty($customer['deskripsi_issue']) ? $customer['deskripsi_issue'] : ''));
 
 // Format phone_contact ke format WA internasional (08... → 628...)
-$phone_raw = preg_replace('/[^0-9]/', '', $customer['phone_contact'] ?? $customer['phone']);
+$phone_raw = preg_replace('/[^0-9]/', '', (string)($customer['phone_contact'] ?? $customer['phone'] ?? ''));
 if ($phone_raw !== '' && substr($phone_raw, 0, 1) === '0') {
     $phone_wa = '62' . substr($phone_raw, 1);
 } else {
