@@ -771,10 +771,14 @@ require __DIR__ . '/../../includes/navbar.php';
                     '━━━━━━━━━━━━━━━━━━\n🛠️ *Teknisi*\n' + teknisiText + '\n━━━━━━━━━━━━━━━━━━';
 
                 if (navigator.share) {
-                    await navigator.share({
-                        title: 'Dismantle Report',
-                        text: text
-                    });
+                    try {
+                        await navigator.share({
+                            title: 'Dismantle Report',
+                            text: text
+                        });
+                    } catch (shareErr) {
+                        console.log('Share dibatalkan atau tidak didukung:', shareErr);
+                    }
                 } else {
                     window.open('https://wa.me/?text=' + encodeURIComponent(text));
                 }

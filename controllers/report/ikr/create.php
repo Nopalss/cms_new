@@ -99,11 +99,32 @@ foreach ($required as $field => $value) {
 }
 
 try {
+    // ── Check if IKR Report already exists for this schedule_id ──
+    $stmtCheckExist = $pdo->prepare("SELECT ikr_id FROM ikr_report WHERE schedule_id = :schedule_id LIMIT 1");
+    $stmtCheckExist->execute([':schedule_id' => $schedule_id]);
+    $existingIkr = $stmtCheckExist->fetchColumn();
+    if ($existingIkr) {
+        echo json_encode([
+            'status'  => false,
+            'message' => "Laporan IKR untuk tiket/jadwal ini sudah pernah dibuat (ID: $existingIkr)."
+        ]);
+        exit;
+    }
+
+    // ── Guarantee UNIQUE ikr_id ──
+    if (empty($ikr_id)) {
+        $ikr_id = "SI" . date("YmdHis");
+    }
+    $stmtCheckIkr = $pdo->prepare("SELECT COUNT(*) FROM ikr_report WHERE ikr_id = :ikr_id");
+    $stmtCheckIkr->execute([':ikr_id' => $ikr_id]);
+    if ($stmtCheckIkr->fetchColumn() > 0) {
+        $ikr_id = "SI" . date("YmdHis") . sprintf("%02d", rand(10, 99));
+    }
+
     $pdo->beginTransaction();
 
     // ==========================
     // INSERT IKR
-    // FIX: sesuaikan kolom & value, tambah group_ikr & ikr_an & telp
     // ==========================
     $stmt = $pdo->prepare("
         INSERT INTO ikr_report (

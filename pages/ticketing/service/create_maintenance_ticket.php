@@ -2,6 +2,7 @@
 
 require_once __DIR__ . "/../../../includes/config.php";
 require_once __DIR__ . "/../../../helper/sanitize.php";
+require_once __DIR__ . "/../../../helper/fcm_helper.php";
 
 date_default_timezone_set('Asia/Jakarta');
 
@@ -34,6 +35,7 @@ $noc_id          = sanitize($_POST['noc_id'] ?? '');
 $perumahan       = sanitize($_POST['perumahan'] ?? '');
 $location        = sanitize($_POST['location'] ?? '');
 $sharelock       = sanitize($_POST['sharelock'] ?? '');
+$nama            = sanitize($_POST['nama'] ?? '');
 
 /*
 =====================================
@@ -43,6 +45,9 @@ VALIDASI
 
 if ($ticket_type === 'non_customer') {
     $netpay_id = null;
+    if (empty($nama)) {
+        $nama = 'Infrastruktur Jaringan';
+    }
     $required = compact(
         'perumahan',
         'location',
@@ -53,6 +58,7 @@ if ($ticket_type === 'non_customer') {
         'noc_id'
     );
 } else {
+    $nama = null;
     $required = compact(
         'netpay_id',
         'aduan_pelanggan',
@@ -156,13 +162,14 @@ try {
     // 2. request_maintenance — detail komplain + lokasi non-customer
     $stmt = $pdo->prepare("
         INSERT INTO request_maintenance
-            (rm_id, queue_id, type_issue, deskripsi_issue, server, verifikasi_noc, request_by, perumahan, location, sharelock)
+            (rm_id, queue_id, nama, type_issue, deskripsi_issue, server, verifikasi_noc, request_by, perumahan, location, sharelock)
         VALUES
-            (:rm_id, :queue_id, :type_issue, :deskripsi_issue, :server, :verifikasi_noc, :request_by, :perumahan, :location, :sharelock)
+            (:rm_id, :queue_id, :nama, :type_issue, :deskripsi_issue, :server, :verifikasi_noc, :request_by, :perumahan, :location, :sharelock)
     ");
     $stmt->execute([
         ':rm_id'           => $rm_id,
         ':queue_id'        => $queue_id,
+        ':nama'            => $nama,
         ':type_issue'      => 'Service',
         ':deskripsi_issue' => $aduan_pelanggan,
         ':server'          => $server,
@@ -173,7 +180,7 @@ try {
         ':sharelock'       => !empty($sharelock) ? $sharelock : null,
     ]);
 
-    // 3. schedules — assignment ke tim (disimpan di tech_id), target_status default "On Time"
+    // 3. schedules — assignment ke tim (tech_id diisi dengan ID tim), target_status default "On Time"
     $stmt = $pdo->prepare("
         INSERT INTO schedules
             (schedule_id, tech_id, date, time, job_type, status, target_status, queue_id, noc_id)
@@ -192,7 +199,6 @@ try {
     $pdo->commit();
 
     // Trigger Firebase FCM Push Notification to team members
-    require_once __DIR__ . "/../../../helper/fcm_helper.php";
     try {
         sendTeamTicketNotification($pdo, $tim_id, $schedule_id);
     } catch (Exception $fcmEx) {

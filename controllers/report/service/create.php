@@ -104,40 +104,26 @@ foreach ($required as $field => $value) {
 
 try {
 
-    // Cek duplikat srv_id, generate id baru kalau bentrok.
-    // Prefix bisa berapa pun panjangnya ("S", "SR", dll) — yang kita
-    // asumsikan tetap cuma 14 digit terakhir adalah timestamp YmdHis.
-    // Prefix diambil dinamis dari sisa string di depannya, bukan
-    // hardcode panjang tetap kayak sebelumnya (substr($srv_id, 2)).
-    while (true) {
-
-        $check = $pdo->prepare("
-            SELECT COUNT(*)
-            FROM service_reports
-            WHERE srv_id = :srv_id
-        ");
-        $check->execute([
-            ':srv_id' => $srv_id
+    // ── Check if Service Report already exists for this schedule_id ──
+    $stmtCheckExist = $pdo->prepare("SELECT srv_id FROM service_reports WHERE schedule_id = :schedule_id LIMIT 1");
+    $stmtCheckExist->execute([':schedule_id' => $schedule_id]);
+    $existingSrv = $stmtCheckExist->fetchColumn();
+    if ($existingSrv) {
+        echo json_encode([
+            'status'  => false,
+            'message' => "Laporan Service untuk tiket/jadwal ini sudah pernah dibuat (ID: $existingSrv)."
         ]);
+        exit;
+    }
 
-        if ($check->fetchColumn() == 0) {
-            break;
-        }
-
-        if (!preg_match('/^(\D*)(\d{14})$/', $srv_id, $m)) {
-            throw new Exception('Format srv_id tidak valid: ' . $srv_id);
-        }
-
-        $prefix   = $m[1];
-        $datetime = $m[2];
-
-        $dt = DateTime::createFromFormat('YmdHis', $datetime);
-        if ($dt === false) {
-            throw new Exception('Gagal parsing timestamp dari srv_id: ' . $srv_id);
-        }
-
-        $dt->modify('+1 second');
-        $srv_id = $prefix . $dt->format('YmdHis');
+    // ── Guarantee UNIQUE srv_id ──
+    if (empty($srv_id)) {
+        $srv_id = "SR" . date("YmdHis");
+    }
+    $stmtCheckSrv = $pdo->prepare("SELECT COUNT(*) FROM service_reports WHERE srv_id = :srv_id");
+    $stmtCheckSrv->execute([':srv_id' => $srv_id]);
+    if ($stmtCheckSrv->fetchColumn() > 0) {
+        $srv_id = "SR" . date("YmdHis") . sprintf("%02d", rand(10, 99));
     }
 
     $pdo->beginTransaction();

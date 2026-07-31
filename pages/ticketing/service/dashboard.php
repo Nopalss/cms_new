@@ -1,5 +1,13 @@
 <?php
 require_once __DIR__ . '/../../../includes/config.php';
+$_SESSION['menu'] = 'ticket_service';
+
+$loggedInNocId = $_SESSION['id_karyawan'] ?? '';
+if (empty($loggedInNocId) && !empty($_SESSION['username'])) {
+    $stmtNocSession = $pdo->prepare("SELECT admin_id FROM admin WHERE username = :u LIMIT 1");
+    $stmtNocSession->execute([':u' => $_SESSION['username']]);
+    $loggedInNocId = $stmtNocSession->fetchColumn() ?: '';
+}
 
 // Base path untuk endpoint API di folder ini
 $apiBase = BASE_URL . 'pages/ticketing/service/';
@@ -427,9 +435,19 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
 <body>
 
   <div class="topbar">
-    <div>
-      <h1>Komplain &amp; Service</h1>
-      <div class="sub">Dashboard NOC — JTracks</div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <a href="<?= BASE_URL ?>pages/dashboard.php" style="display: inline-flex; align-items: center; gap: 6px; background: #F1F5F9; color: #334155; text-decoration: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid #CBD5E1; transition: all 0.2s;" title="Kembali ke Dashboard Utama CMS">
+        ⬅️ Kembali
+      </a>
+      <div>
+        <h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          Komplain &amp; Service
+          <a href="<?= BASE_URL ?>pages/ticketing/instalasi/dashboard.php" target="_blank" style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; text-decoration: none; background: #EFF6FF; color: #2563EB; padding: 4px 12px; border-radius: 20px; border: 1px solid #BFDBFE; transition: all 0.2s;" title="Buka Tiket Instalasi di Tab Baru">
+            📡 Ke Tiket Instalasi ↗
+          </a>
+        </h1>
+        <div class="sub">Dashboard NOC — Tiket Service &amp; Maintenance JTracks</div>
+      </div>
     </div>
     <div class="topbar-controls">
       <input type="text" id="searchInput" placeholder="🔍 Cari Netpay ID / Nama..." style="width: 220px;">
@@ -440,7 +458,7 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
       </select>
       <input type="month" id="bulanPicker">
       <button type="button" class="btn-share-today" id="btnSalinTugasHariIni" title="Salin Gambar Screenshot Tugas Hari Ini">📋 Salin Tugas (Hari Ini)</button>
-      <button class="btn-primary" id="btnTiketBaru">+ Tiket Baru</button>
+      <button class="btn-primary" id="btnTiketBaru" title="Shortcut: Tekan ENTER untuk buka">+ Tiket Baru <span style="font-size: 10px; opacity: 0.85; margin-left: 4px; font-weight: 500; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">↵ Enter</span></button>
     </div>
   </div>
 
@@ -566,6 +584,11 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
 
       <!-- Non-customer fields container -->
       <div id="groupNonCustomerFields" style="display: none;">
+        <div class="field" style="margin-bottom: 10px;">
+          <label style="margin-bottom: 4px;">Nama Fasilitas / Infrastruktur <span style="color:var(--cancel-text)">*</span></label>
+          <input type="text" id="f_non_nama" value="Infrastruktur Jaringan" placeholder="mis. Infrastruktur Jaringan / Tiang Listrik BCA 2">
+        </div>
+
         <div class="field-row" style="margin-bottom: 10px;">
           <div class="field" style="margin-bottom: 0;">
             <label style="margin-bottom: 4px;">Perumahan / Wilayah <span style="color:var(--cancel-text)">*</span></label>
@@ -668,6 +691,8 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
   <div class="toast" id="toast"></div>
 
 <script>
+  const loggedInNocId = '<?= htmlspecialchars($loggedInNocId ?? '') ?>';
+
   // BASE_URL di-inject dari PHP — path selalu bener walau project dipindah folder/server
   const API = {
     list:    '<?= $apiBase ?>list_tickets.php',
@@ -1155,6 +1180,16 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     return '';
   }
 
+  function getBackboneTimId(timList) {
+    if (!timList || !timList.length) return '';
+    const found = timList.find(t => {
+      if (!t.nama) return false;
+      const upper = t.nama.toUpperCase().trim();
+      return upper.includes('BACKBONE') || upper.includes('BB');
+    });
+    return found ? found.tim_id : '';
+  }
+
   async function openCreateModal() {
     await ensureDropdownsLoaded();
 
@@ -1165,6 +1200,7 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     document.getElementById('f_no_tlp').value = '';
     document.getElementById('f_alamat').value = '';
     document.getElementById('f_server').value = '';
+    document.getElementById('f_non_nama').value = 'Infrastruktur Jaringan';
     document.getElementById('f_non_perumahan').value = '';
     document.getElementById('f_non_server').value = '';
     document.getElementById('f_non_alamat').value = '';
@@ -1176,7 +1212,12 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
 
     const defaultTimId = getDefaultTimId(state.timList);
     fillDropdown(document.getElementById('f_tim'), state.timList, 'tim_id', 'nama', defaultTimId);
-    fillDropdown(document.getElementById('f_noc'), state.nocList, 'admin_id', 'name', state.lastNocId);
+
+    let defaultNocId = state.lastNocId;
+    if (loggedInNocId && state.nocList.some(n => n.admin_id == loggedInNocId)) {
+      defaultNocId = loggedInNocId;
+    }
+    fillDropdown(document.getElementById('f_noc'), state.nocList, 'admin_id', 'name', defaultNocId);
 
     renderSuggestions('list_f_aduan', state.aduanSuggestions);
     renderSuggestions('list_f_verifikasi', state.nocSuggestions);
@@ -1233,6 +1274,7 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     const nonCustGroup = document.getElementById('groupNonCustomerFields');
     const cardCust = document.getElementById('cardTypeCustomer');
     const cardNonCust = document.getElementById('cardTypeNonCustomer');
+    const timSelect = document.getElementById('f_tim');
 
     if (type === 'non_customer') {
       custGroup.style.display = 'none';
@@ -1241,6 +1283,12 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
       if (cardNonCust) cardNonCust.classList.add('active');
       const radio = cardNonCust.querySelector('input[type="radio"]');
       if (radio) radio.checked = true;
+
+      // Auto select Tim Backbone / BB untuk tiket Infrastruktur / Fasum
+      const bbTimId = getBackboneTimId(state.timList);
+      if (bbTimId && timSelect) {
+        timSelect.value = bbTimId;
+      }
     } else {
       custGroup.style.display = 'block';
       nonCustGroup.style.display = 'none';
@@ -1248,6 +1296,12 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
       if (cardNonCust) cardNonCust.classList.remove('active');
       const radio = cardCust.querySelector('input[type="radio"]');
       if (radio) radio.checked = true;
+
+      // Reset ke Tim default untuk tiket Pelanggan
+      const defaultTimId = getDefaultTimId(state.timList);
+      if (defaultTimId && timSelect) {
+        timSelect.value = defaultTimId;
+      }
     }
   }
 
@@ -1265,6 +1319,7 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
     };
 
     if (ticketType === 'non_customer') {
+      payload.nama      = document.getElementById('f_non_nama').value.trim() || 'Infrastruktur Jaringan';
       payload.perumahan = document.getElementById('f_non_perumahan').value.trim();
       payload.location  = document.getElementById('f_non_alamat').value.trim();
       payload.sharelock = document.getElementById('f_non_sharelock').value.trim();
@@ -1655,6 +1710,26 @@ $apiBase = BASE_URL . 'pages/ticketing/service/';
   document.getElementById('overlay').addEventListener('click', () => {
     closeCreateModal();
     closeDrawer();
+  });
+
+  // Shortcut Keyboard: Tekan 'Enter' untuk buka modal Tiket Baru, 'Esc' untuk tutup
+  document.addEventListener('keydown', function(e) {
+    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    const isInputActive = ['input', 'textarea', 'select', 'button'].includes(activeTag) || (document.activeElement && document.activeElement.isContentEditable);
+    const modal = document.getElementById('modalTiket');
+    const isModalOpen = modal && (modal.classList.contains('show') || modal.classList.contains('open'));
+
+    if ((e.key === 'Enter' || e.keyCode === 13) && !isInputActive) {
+      if (!isModalOpen) {
+        e.preventDefault();
+        openCreateModal();
+      }
+    } else if (e.key === 'Escape' || e.keyCode === 27) {
+      if (isModalOpen) {
+        e.preventDefault();
+        closeCreateModal();
+      }
+    }
   });
 
   loadTickets();

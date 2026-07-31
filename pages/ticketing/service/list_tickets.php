@@ -42,7 +42,7 @@ try {
             t.nama            AS tim_nama,
             COALESCE(q.netpay_id, '-') AS netpay_id,
             q.created_at      AS tanggal_dibuat,
-            COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS nama,
+            COALESCE(c.name, rm.nama, 'Infrastruktur Jaringan') AS nama,
             COALESCE(NULLIF(c.phone_contact, ''), c.phone, '-') AS no_tlp,
             COALESCE(NULLIF(TRIM(CONCAT_WS(' ', rm.perumahan, rm.location)), ''), CONCAT_WS(' ', c.perumahan, c.location), '-') AS alamat,
             rm.server,

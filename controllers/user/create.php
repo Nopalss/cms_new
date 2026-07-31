@@ -12,12 +12,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // =============================
     // 🔥 AMBIL DATA
     // =============================
-    $username    = sanitize($_POST['username'] ?? null);
+    $rawUsername = sanitize($_POST['username'] ?? null);
     $name        = sanitize($_POST['name'] ?? null);
     $nip         = sanitize($_POST['nip'] ?? null);
     $phone       = sanitize($_POST['phone'] ?? null);
     $passwordRaw = trim($_POST['password'] ?? null);
     $rawRole     = sanitize($_POST['role'] ?? null);
+
+    // Format username: lowercase & alphanumeric/underscore only
+    $username = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $rawUsername ?? ''));
+
+    // Fallback otomatis jika username belum terisi: e.g. udin123
+    if (empty($username) && !empty($name)) {
+        $firstWord = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', explode(' ', trim($name))[0] ?? 'user'));
+        $username  = ($firstWord ?: 'user') . '123';
+    }
 
     if (strcasecmp($rawRole, 'teknisi') === 0) {
         $dbRole  = 'teknisi';

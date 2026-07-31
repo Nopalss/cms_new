@@ -12,7 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
     }
 
-    $username    = sanitize($_POST['username'] ?? '');
+    $oldUsername = sanitize($_POST['old_username'] ?? $_POST['username'] ?? '');
+    $rawUsername = sanitize($_POST['username'] ?? '');
+    $newUsername = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $rawUsername));
+
+    if (empty($newUsername)) {
+        $newUsername = $oldUsername;
+    }
+
     $name        = sanitize($_POST['name'] ?? '');
     $nip         = sanitize($_POST['nip'] ?? '');
     $phone       = sanitize($_POST['phone'] ?? '');
@@ -27,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $jabatan = $rawRole; // 'Admin', 'SuperAdmin', 'NOC', 'Manager'
     }
 
-    if (!$name || !$phone || !$username || !$nip || !$rawRole) {
+    if (!$name || !$phone || !$newUsername || !$nip || !$rawRole) {
         $_SESSION['alert'] = [
             'icon' => 'error',
             'title' => 'Oops! Ada yang Salah',
@@ -35,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'button' => 'Coba Lagi',
             'style' => 'danger'
         ];
-        header("Location: " . BASE_URL . "pages/user/");
+        header("Location: " . BASE_URL . "pages/user/update.php?id=" . urlencode($oldUsername));
         exit;
     }
 
@@ -47,12 +54,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'button' => 'Coba Lagi',
             'style' => 'danger'
         ];
-        header("Location: " . BASE_URL . "pages/user/");
+        header("Location: " . BASE_URL . "pages/user/update.php?id=" . urlencode($oldUsername));
         exit;
     }
 
     if (strpos($phone, '08') === 0) {
         $phone = '62' . substr($phone, 1);
+    }
+
+    // Cek jika username diubah dan sudah terpakai oleh user lain
+    if ($newUsername !== $oldUsername) {
+        $check = $pdo->prepare("SELECT 1 FROM users WHERE username = :newUsername");
+        $check->execute([':newUsername' => $newUsername]);
+        if ($check->fetchColumn()) {
+            $_SESSION['alert'] = [
+                'icon' => 'error',
+                'title' => 'Oops!',
+                'text' => "Username '$newUsername' sudah digunakan user lain.",
+                'button' => 'Coba Lagi',
+                'style' => 'danger'
+            ];
+            header("Location: " . BASE_URL . "pages/user/update.php?id=" . urlencode($oldUsername));
+            exit;
+        }
     }
 
     try {
@@ -64,11 +88,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // =============================
 
         $stmt = $pdo->prepare("SELECT role FROM users WHERE username = ?");
-        $stmt->execute([$username]);
+        $stmt->execute([$oldUsername]);
         $oldRole = $stmt->fetchColumn();
 
         if (!$oldRole) {
             throw new Exception("User tidak ditemukan.");
+        }
+
+        // Jika username diubah, update username di tabel admin & technician dulu sebelum users
+        if ($newUsername !== $oldUsername) {
+            $pdo->prepare("UPDATE admin SET username = :new WHERE username = :old")->execute([':new' => $newUsername, ':old' => $oldUsername]);
+            $pdo->prepare("UPDATE technician SET username = :new WHERE username = :old")->execute([':new' => $newUsername, ':old' => $oldUsername]);
         }
 
         // =============================
@@ -76,20 +106,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // =============================
 
         $paramsUser = [
-            ':username' => $username,
-            ':role'     => $dbRole
+            ':new_username' => $newUsername,
+            ':old_username' => $oldUsername,
+            ':role'         => $dbRole
         ];
 
-        $sqlUser = "UPDATE users SET role = :role";
+        $sqlUser = "UPDATE users SET username = :new_username, role = :role";
 
         if (!empty($passwordRaw)) {
             $sqlUser .= ", password = :password";
             $paramsUser[':password'] = password_hash($passwordRaw, PASSWORD_DEFAULT);
         }
 
-        $sqlUser .= " WHERE username = :username";
+        $sqlUser .= " WHERE username = :old_username";
         $stmt = $pdo->prepare($sqlUser);
         $stmt->execute($paramsUser);
+
+        // username yang aktif sekarang adalah newUsername
+        $username = $newUsername;
 
         // =============================
         // PROSES PERUBAHAN ROLE & DATA KARYAWAN

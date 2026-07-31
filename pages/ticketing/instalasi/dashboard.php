@@ -1,5 +1,13 @@
 <?php
 require_once __DIR__ . '/../../../includes/config.php';
+$_SESSION['menu'] = 'ticket_instalasi';
+
+$loggedInNocId = $_SESSION['id_karyawan'] ?? '';
+if (empty($loggedInNocId) && !empty($_SESSION['username'])) {
+    $stmtNocSession = $pdo->prepare("SELECT admin_id FROM admin WHERE username = :u LIMIT 1");
+    $stmtNocSession->execute([':u' => $_SESSION['username']]);
+    $loggedInNocId = $stmtNocSession->fetchColumn() ?: '';
+}
 
 // Base path untuk endpoint API di folder ini
 $apiBase = BASE_URL . 'pages/ticketing/instalasi/';
@@ -383,9 +391,19 @@ $apiBase = BASE_URL . 'pages/ticketing/instalasi/';
 <body>
 
   <div class="topbar">
-    <div>
-      <h1>Ticketing Instalasi (IKR)</h1>
-      <div class="sub">Dashboard NOC — Tiket Pengerjaan Instalasi Pelanggan Baru</div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <a href="<?= BASE_URL ?>pages/dashboard.php" style="display: inline-flex; align-items: center; gap: 6px; background: #F1F5F9; color: #334155; text-decoration: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid #CBD5E1; transition: all 0.2s;" title="Kembali ke Dashboard Utama CMS">
+        ⬅️ Kembali
+      </a>
+      <div>
+        <h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          Ticketing Instalasi (IKR)
+          <a href="<?= BASE_URL ?>pages/ticketing/service/dashboard.php" target="_blank" style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; text-decoration: none; background: #EFF6FF; color: #2563EB; padding: 4px 12px; border-radius: 20px; border: 1px solid #BFDBFE; transition: all 0.2s;" title="Buka Tiket Service di Tab Baru">
+            🛠️ Ke Tiket Service ↗
+          </a>
+        </h1>
+        <div class="sub">Dashboard NOC — Tiket Pengerjaan Instalasi Pelanggan Baru</div>
+      </div>
     </div>
     <div class="topbar-controls">
       <input type="text" id="searchInput" placeholder="🔍 Cari Netpay ID / Nama / Perumahan..." style="width: 240px;">
@@ -395,7 +413,7 @@ $apiBase = BASE_URL . 'pages/ticketing/instalasi/';
       </select>
       <input type="month" id="monthInput" style="width: 140px;">
       <button type="button" class="btn-share-today" id="btnSalinTugasHariIni" title="Salin Gambar Screenshot Tugas Hari Ini">📋 Salin Tugas (Hari Ini)</button>
-      <button class="btn-primary" id="btnOpenCreate">+ Tiket Baru</button>
+      <button class="btn-primary" id="btnOpenCreate" title="Shortcut: Tekan ENTER untuk buka">+ Tiket Baru <span style="font-size: 10px; opacity: 0.85; margin-left: 4px; font-weight: 500; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">↵ Enter</span></button>
     </div>
   </div>
 
@@ -583,6 +601,7 @@ $apiBase = BASE_URL . 'pages/ticketing/instalasi/';
   <div class="toast" id="toast"></div>
 
 <script>
+  const loggedInNocId = '<?= htmlspecialchars($loggedInNocId ?? '') ?>';
   const API_BASE = '<?= $apiBase ?>';
   const API = {
     list:          API_BASE + 'list_tickets.php',
@@ -1170,7 +1189,12 @@ $apiBase = BASE_URL . 'pages/ticketing/instalasi/';
 
     const defaultTimId = getDefaultTimId(state.timList);
     fillDropdown(document.getElementById('f_tim'), state.timList, 'tim_id', 'nama', defaultTimId);
-    fillDropdown(document.getElementById('f_noc'), state.nocList, 'admin_id', 'name', state.lastNocId);
+
+    let defaultNocId = state.lastNocId;
+    if (loggedInNocId && state.nocList.some(n => n.admin_id == loggedInNocId)) {
+      defaultNocId = loggedInNocId;
+    }
+    fillDropdown(document.getElementById('f_noc'), state.nocList, 'admin_id', 'name', defaultNocId);
 
     document.getElementById('overlay').classList.add('show');
     document.getElementById('modalTiket').classList.add('show');
@@ -1544,6 +1568,26 @@ $apiBase = BASE_URL . 'pages/ticketing/instalasi/';
       }
     });
   }
+
+  // Shortcut Keyboard: Tekan 'Enter' untuk buka modal Tiket Baru, 'Esc' untuk tutup
+  document.addEventListener('keydown', function(e) {
+    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    const isInputActive = ['input', 'textarea', 'select', 'button'].includes(activeTag) || (document.activeElement && document.activeElement.isContentEditable);
+    const modal = document.getElementById('modalTiket');
+    const isModalOpen = modal && (modal.classList.contains('show') || modal.classList.contains('open'));
+
+    if ((e.key === 'Enter' || e.keyCode === 13) && !isInputActive) {
+      if (!isModalOpen) {
+        e.preventDefault();
+        openCreateModal();
+      }
+    } else if (e.key === 'Escape' || e.keyCode === 27) {
+      if (isModalOpen) {
+        e.preventDefault();
+        closeCreateModal();
+      }
+    }
+  });
 </script>
 </body>
 </html>

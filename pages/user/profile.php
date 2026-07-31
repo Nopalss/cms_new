@@ -99,11 +99,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     mkdir($uploadDir, 0777, true);
                 }
 
-                $fileName = uniqid() . '.' . $fileExt;
+                $fileName = uniqid() . '.' . ($fileExt === 'png' ? 'png' : 'jpg');
                 $destPath = $uploadDir . $fileName;
 
-                if (move_uploaded_file($fileTmpPath, $destPath)) {
+                // Kompresi & Resize Otomatis Foto Profil (Max 300x300 px)
+                $imgData = file_get_contents($fileTmpPath);
+                $img = @imagecreatefromstring($imgData);
 
+                if ($img) {
+                    $w = imagesx($img);
+                    $h = imagesy($img);
+                    $maxDim = 300;
+                    if ($w > $maxDim || $h > $maxDim) {
+                        if ($w > $h) {
+                            $nw = $maxDim;
+                            $nh = (int)($h * ($maxDim / $w));
+                        } else {
+                            $nh = $maxDim;
+                            $nw = (int)($w * ($maxDim / $h));
+                        }
+                    } else {
+                        $nw = $w;
+                        $nh = $h;
+                    }
+                    $newImg = imagecreatetruecolor($nw, $nh);
+                    if ($fileExt === 'png') {
+                        imagealphablending($newImg, false);
+                        imagesavealpha($newImg, true);
+                        imagecopyresampled($newImg, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
+                        imagepng($newImg, $destPath, 8);
+                    } else {
+                        imagecopyresampled($newImg, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
+                        imagejpeg($newImg, $destPath, 82);
+                    }
+                    imagedestroy($img);
+                    imagedestroy($newImg);
+
+                    // Hapus avatar lama jika ada dan bukan blank.png
+                    if (!empty($userData['avatar']) && $userData['avatar'] !== 'blank.png' && file_exists($uploadDir . $userData['avatar'])) {
+                        @unlink($uploadDir . $userData['avatar']);
+                    }
+
+                    $updateAvatar = $pdo->prepare("UPDATE users SET avatar = :avatar WHERE username = :username");
+                    $updateAvatar->execute([
+                        ':avatar' => $fileName,
+                        ':username' => $currentUsername
+                    ]);
+                } else if (move_uploaded_file($fileTmpPath, $destPath)) {
                     $updateAvatar = $pdo->prepare("UPDATE users SET avatar = :avatar WHERE username = :username");
                     $updateAvatar->execute([
                         ':avatar' => $fileName,

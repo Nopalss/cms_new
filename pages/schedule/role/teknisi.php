@@ -9,7 +9,7 @@ SELECT
     c.phone,
     c.phone_contact,
     COALESCE(NULLIF(c.phone_contact, ''), c.phone, '-') AS no_tlp,
-    COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS name,
+    COALESCE(c.name, rm.nama, 'Infrastruktur Jaringan') AS name,
     COALESCE(c.perumahan, rm.perumahan, '-') AS perumahan,
     COALESCE(c.sharelock, rm.sharelock, '') AS sharelock,
     COALESCE(NULLIF(c.paket_internet, ''), reg.paket_internet) AS paket_internet,
@@ -87,14 +87,14 @@ $issues_report = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // HELPER VARIABLES
 // ============================================
 $total           = count($schedules);
-$done_count      = count(array_filter($schedules, fn($s) => $s['status'] === 'Done'));
-$aktif_count     = count(array_filter($schedules, fn($s) => in_array($s['status'], ['Pending', 'Actived', 'Rescheduled'])));
-$cancelled_count = count(array_filter($schedules, fn($s) => $s['status'] === 'Cancelled'));
+$done_count      = count(array_filter($schedules, function($s) { return $s['status'] === 'Done'; }));
+$aktif_count     = count(array_filter($schedules, function($s) { return in_array($s['status'], ['Pending', 'Actived', 'Rescheduled']); }));
+$cancelled_count = count(array_filter($schedules, function($s) { return $s['status'] === 'Cancelled'; }));
 
 // Job type breakdown counts
-$instalasi_count = count(array_filter($schedules, fn($s) => $s['job_type'] === 'Instalasi'));
-$service_count   = count(array_filter($schedules, fn($s) => $s['job_type'] === 'Service'));
-$dismantle_count = count(array_filter($schedules, fn($s) => $s['job_type'] === 'Dismantle'));
+$instalasi_count = count(array_filter($schedules, function($s) { return $s['job_type'] === 'Instalasi'; }));
+$service_count   = count(array_filter($schedules, function($s) { return $s['job_type'] === 'Service'; }));
+$dismantle_count = count(array_filter($schedules, function($s) { return $s['job_type'] === 'Dismantle'; }));
 
 $nama_teknisi = $_SESSION['name'] ?? 'Teknisi';
 
@@ -1332,8 +1332,8 @@ $initials = substr($initials, 0, 2);
                     <?php
                     $initial_schedules = $has_my_claims ? $my_schedules : $schedules;
                     $initial_total     = count($initial_schedules);
-                    $initial_done      = count(array_filter($initial_schedules, fn($s) => $s['status'] === 'Done'));
-                    $initial_aktif     = count(array_filter($initial_schedules, fn($s) => in_array($s['status'], ['Pending', 'Actived', 'Rescheduled'])));
+                    $initial_done      = count(array_filter($initial_schedules, function($s) { return $s['status'] === 'Done'; }));
+                    $initial_aktif     = count(array_filter($initial_schedules, function($s) { return in_array($s['status'], ['Pending', 'Actived', 'Rescheduled']); }));
                     $progress_pct      = $initial_total > 0 ? round(($initial_done / $initial_total) * 100) : 0;
 
                     $circumference = 2 * M_PI * 26; // r=26
@@ -2057,6 +2057,13 @@ endif; ?>
       })
       .catch((err) => console.error('[FCM] Service Worker registration failed:', err));
 
+    messaging.onMessage((payload) => {
+      console.log('[FCM] Foreground push notification received:', payload);
+      const title = payload.notification?.title || payload.data?.title || '📌 Notifikasi Tugas';
+      const body  = payload.notification?.body  || payload.data?.body  || '';
+      showCustomFcmNotification(title, body, payload);
+    });
+
     function showCustomFcmNotification(title, body, payload) {
       function escapeHtml(str) {
         if (!str) return '';
@@ -2258,9 +2265,10 @@ endif; ?>
                                         $c_info = $taskClaims[$sid] ?? null;
                                         $is_checked = ($c_info && ($c_info['claimed_by_tech_id'] === $tech_id || in_array($c_info['claimed_by_tech_id'], $saved_daily_team)));
                                         $claimed_by_other = ($c_info && !$is_checked) ? $c_info['claimed_by_name'] : '';
+                                        $is_disabled = !empty($claimed_by_other);
                                         ?>
-                                        <label class="task-claim-item" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; background: <?= $is_checked ? '#EFF6FF' : '#F8FAFC' ?>; border: 1px solid <?= $is_checked ? '#BFDBFE' : '#F1F5F9' ?>; margin: 0; cursor: pointer; transition: all 0.15s ease;">
-                                            <input type="checkbox" class="chk-task-claim" value="<?= htmlspecialchars($sid) ?>" <?= $is_checked ? 'checked' : '' ?> style="width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: #2563EB;">
+                                        <label class="task-claim-item" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; background: <?= $is_checked ? '#EFF6FF' : ($is_disabled ? '#F1F5F9' : '#F8FAFC') ?>; border: 1px solid <?= $is_checked ? '#BFDBFE' : '#E2E8F0' ?>; margin: 0; cursor: <?= $is_disabled ? 'not-allowed' : 'pointer' ?>; opacity: <?= $is_disabled ? '0.75' : '1' ?>; transition: all 0.15s ease;">
+                                            <input type="checkbox" class="chk-task-claim" value="<?= htmlspecialchars($sid) ?>" <?= $is_checked ? 'checked' : '' ?> <?= $is_disabled ? 'disabled' : '' ?> style="width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: #2563EB; cursor: <?= $is_disabled ? 'not-allowed' : 'pointer' ?>;">
                                             <div style="flex: 1; min-width: 0;">
                                                 <div class="d-flex align-items-center mb-1" style="flex-wrap: wrap;">
                                                     <span class="badge badge-<?= $badgeClasses[$item['job_type']] ?? 'secondary' ?>" style="font-size: 10px; font-weight: 700; padding: 3px 8px; margin-right: 8px; border-radius: 6px; text-transform: uppercase; flex-shrink: 0;">
@@ -2274,8 +2282,8 @@ endif; ?>
                                                     📍 <strong style="color:#334155"><?= htmlspecialchars($p_name) ?></strong> <?= htmlspecialchars($item['location']) ?>
                                                 </div>
                                                 <?php if ($claimed_by_other): ?>
-                                                    <div style="font-size: 10.5px; color: #D97706; font-weight: 700; margin-top: 4px; background: #FEF3C7; padding: 2px 6px; border-radius: 4px; display: inline-block;">
-                                                        👤 Diambil: <?= htmlspecialchars($claimed_by_other) ?>
+                                                    <div style="font-size: 10.5px; color: #B45309; font-weight: 700; margin-top: 4px; background: #FEF3C7; border: 1px solid #FDE68A; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                                        <i class="fa fa-lock" style="font-size:10px; color:#D97706;"></i> Diambil oleh: <strong><?= htmlspecialchars($claimed_by_other) ?></strong> (Terkunci)
                                                     </div>
                                                 <?php endif; ?>
                                             </div>
@@ -2308,7 +2316,7 @@ endif; ?>
         var year = d.getFullYear();
         if (month.length < 2) month = '0' + month;
         if (day.length < 2) day = '0' + day;
-        return 'ops_daily_team_' + [year, month, day].join('-');
+        return 'ops_daily_team_' + CURRENT_USER_TECH_ID + '_' + [year, month, day].join('-');
     }
 
     function loadSavedPartners() {
@@ -2447,7 +2455,7 @@ endif; ?>
     function toggleGroupCheck(masterChk) {
         var groupCard = masterChk.closest('.perumahan-group-card');
         if (!groupCard) return;
-        groupCard.querySelectorAll('.chk-task-claim').forEach(function(chk) {
+        groupCard.querySelectorAll('.chk-task-claim:not(:disabled)').forEach(function(chk) {
             chk.checked = masterChk.checked;
         });
     }

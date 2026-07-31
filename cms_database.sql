@@ -361,6 +361,7 @@ CREATE TABLE `request_maintenance` (
   `rm_key` int NOT NULL,
   `rm_id` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
   `queue_id` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `nama` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `server` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `perumahan` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `location` text COLLATE utf8mb4_general_ci DEFAULT NULL,

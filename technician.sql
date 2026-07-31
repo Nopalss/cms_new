@@ -34,7 +34,8 @@ CREATE TABLE `technician` (
   `name` varchar(200) NOT NULL,
   `phone` varchar(200) NOT NULL,
   `username` varchar(200) NOT NULL,
-  `tim_id` varchar(200) DEFAULT NULL
+  `tim_id` varchar(200) DEFAULT NULL,
+  `fcm_token` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --

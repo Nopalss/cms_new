@@ -87,7 +87,7 @@ $currentValue = ($row['role'] === 'teknisi') ? 'Teknisi' : (!empty($row['jabatan
                     <div class="card-body bg-white p-6 p-lg-9">
                         <form method="post" class="form" action="<?= BASE_URL ?>controllers/user/update.php">
 
-                            <input type="hidden" name="username" value="<?= htmlspecialchars($row['username']) ?>">
+                            <input type="hidden" name="old_username" value="<?= htmlspecialchars($row['username']) ?>">
 
                             <div class="row">
                                 <!-- Kolom Kiri: Personal Info -->
@@ -158,16 +158,21 @@ $currentValue = ($row['role'] === 'teknisi') ? 'Teknisi' : (!empty($row['jabatan
                                     </div>
 
                                     <div class="form-group mb-4">
-                                        <label class="font-weight-bolder text-dark">
-                                            Username (Tetap)
+                                        <label class="font-weight-bolder text-dark" for="username">
+                                            Username Sistem <span class="text-danger">*</span>
                                         </label>
                                         <div class="input-group">
                                             <div class="input-group-prepend">
                                                 <span class="input-group-text bg-white border-right-0"><i class="flaticon2-user-outline-symbol text-muted"></i></span>
                                             </div>
-                                            <input type="text" class="form-control bg-light font-weight-bolder text-dark pl-3" disabled="disabled" value="<?= htmlspecialchars($row['username']) ?>">
+                                            <input id="username" type="text" class="form-control font-weight-bolder text-primary pl-3" name="username" value="<?= htmlspecialchars($row['username']) ?>" placeholder="mis. udin123" required>
+                                            <div class="input-group-append">
+                                                <button class="btn btn-light-primary border" type="button" id="btnGenerateUsername" title="Generate Username dari Nama">
+                                                    ⚡ Auto
+                                                </button>
+                                            </div>
                                         </div>
-                                        <span class="form-text text-muted font-size-xs">Username kunci akun tidak dapat diubah</span>
+                                        <span class="form-text text-muted font-size-xs">Format mudah diingat: <strong>nama123</strong> (misal: <em>udin123</em>). Anda dapat mengubahnya.</span>
                                     </div>
 
                                     <div class="form-group mb-4">
@@ -210,6 +215,26 @@ $currentValue = ($row['role'] === 'teknisi') ? 'Teknisi' : (!empty($row['jabatan
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('name');
+    const usernameInput = document.getElementById('username');
+    const btnGenerate = document.getElementById('btnGenerateUsername');
+
+    if (btnGenerate && nameInput && usernameInput) {
+        btnGenerate.addEventListener('click', function() {
+            const fullName = nameInput.value || '';
+            const words = fullName.trim().split(/\s+/);
+            let firstWord = words[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!firstWord) firstWord = 'user';
+            usernameInput.value = firstWord + '123';
+        });
+    }
+
+    if (usernameInput) {
+        usernameInput.addEventListener('input', function() {
+            this.value = this.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+        });
+    }
+
     // Password Visibility Toggle
     const togglePasswordBtn = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('password');

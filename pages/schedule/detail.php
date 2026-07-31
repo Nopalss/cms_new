@@ -37,7 +37,7 @@ try {
     } elseif ($job_type === "Service" || $job_type === "Maintenance" || empty($job_type)) {
 
         $sql = "SELECT s.*,
-                       COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS name,
+                       COALESCE(c.name, r.nama, 'Infrastruktur Jaringan') AS name,
                        COALESCE(NULLIF(TRIM(r.perumahan), ''), c.perumahan, '-') AS perumahan,
                        COALESCE(NULLIF(TRIM(r.location), ''), c.location, '-') AS location,
                        COALESCE(NULLIF(TRIM(r.sharelock), ''), c.sharelock, '') AS sharelock,
@@ -78,6 +78,21 @@ try {
     $stmt->execute([':schedule_id' => $id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     checkRowExist($row, "pages/schedule/");
+
+    // ── Ambil Riwayat Service Pelanggan (jika netpay_id valid) ─────
+    $service_history = [];
+    $cust_netpay_id = !empty($row['netpay_id']) ? trim($row['netpay_id']) : '';
+    if (!empty($cust_netpay_id) && $cust_netpay_id !== '-' && $cust_netpay_id !== 'NON_CUSTOMER') {
+        $stmtHistory = $pdo->prepare("
+            SELECT srv_id, tanggal, jam, problem, action, part, ont_bef, ont_aft, red_bef, red_aft, keterangan, created_at
+            FROM service_reports
+            WHERE netpay_id = :netpay_id
+            ORDER BY tanggal DESC, jam DESC, created_at DESC
+            LIMIT 5
+        ");
+        $stmtHistory->execute([':netpay_id' => $cust_netpay_id]);
+        $service_history = $stmtHistory->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     // tentukan kolom tanggal
     $dateField = null;
@@ -873,6 +888,125 @@ $show_bar        = $show_actions && ($is_pending_resh || $is_actived) && empty($
 
                         </div>
                     </div>
+
+                    <!-- ── RIWAYAT SERVICE CUSTOMER ───────────────── -->
+                    <?php if (($job === 'Service' || $job === 'Maintenance') && !empty($cust_netpay_id) && $cust_netpay_id !== '-' && $cust_netpay_id !== 'NON_CUSTOMER'): ?>
+                        <div class="dtl-info-card" style="grid-column: 1 / -1; margin-top: 4px;">
+                            <div class="dtl-info-header" style="background:#FFFBEB; border-bottom:1px solid #FDE68A;">
+                                <span class="dtl-info-icon" style="background:#FEF3C7;color:#D97706">
+                                    <i class="fa fa-history"></i>
+                                </span>
+                                <div style="flex:1; display:flex; align-items:center; justify-content:space-between;">
+                                    <span class="dtl-info-title" style="color:#78350F; font-size:14px;">Riwayat Service Customer</span>
+                                    <span style="font-size:11px; font-weight:800; background:#FDE68A; color:#92400E; padding:3px 10px; border-radius:12px;">
+                                        <?= count($service_history) ?> Service Tercatat
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="dtl-info-body" style="padding: 12px;">
+                                <?php if (empty($service_history)): ?>
+                                    <div style="text-align:center; padding: 24px 10px; color:#94A3B8; font-size:12px; font-style:italic;">
+                                        <i class="fa fa-info-circle" style="font-size:18px; margin-bottom:6px; display:block; color:#CBD5E1;"></i>
+                                        Belum ada riwayat pengerjaan service sebelumnya untuk pelanggan ini.
+                                    </div>
+                                <?php else: ?>
+                                    <div style="display:flex; flex-direction:column; gap:12px;">
+                                        <?php foreach ($service_history as $idx => $sh): ?>
+                                            <div style="background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:12px; padding:12px; position:relative;">
+                                                <!-- Header Riwayat -->
+                                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; border-bottom:1px dashed #CBD5E1; padding-bottom:6px; flex-wrap:wrap; gap:6px;">
+                                                    <div style="font-size:12px; font-weight:800; color:#2563EB; display:flex; align-items:center; gap:6px;">
+                                                        <i class="far fa-calendar-alt"></i>
+                                                        <?= !empty($sh['tanggal']) ? date('d M Y', strtotime($sh['tanggal'])) : '-' ?>
+                                                        <?php if (!empty($sh['jam'])): ?>
+                                                            <span style="color:#64748B; font-weight:600; font-size:11px;">(<?= date('H:i', strtotime($sh['jam'])) ?> WIB)</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <span style="font-size:10px; font-weight:800; background:#E2E8F0; color:#475569; padding:2px 8px; border-radius:6px;">
+                                                        ID: <?= htmlspecialchars($sh['srv_id']) ?>
+                                                    </span>
+                                                </div>
+
+                                                <!-- Body Grid Riwayat -->
+                                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; font-size:12px;">
+                                                    <!-- Problem / Aduan -->
+                                                    <div style="background:#FFFFFF; padding:8px 10px; border-radius:8px; border:1px solid #FCA5A5; border-left:3px solid #EF4444;">
+                                                        <div style="font-size:10px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
+                                                            <i class="fa fa-exclamation-circle" style="font-size:11px; color:#EF4444;"></i> Problem / Masalah
+                                                        </div>
+                                                        <div style="font-weight:700; color:#7F1D1D; line-height:1.35;">
+                                                            <?= htmlspecialchars(!empty($sh['problem']) ? $sh['problem'] : '-') ?>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Action / Tindakan -->
+                                                    <div style="background:#FFFFFF; padding:8px 10px; border-radius:8px; border:1px solid #6EE7B7; border-left:3px solid #10B981;">
+                                                        <div style="font-size:10px; font-weight:800; color:#065F46; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
+                                                            <i class="fa fa-wrench" style="font-size:11px; color:#10B981;"></i> Tindakan (Action)
+                                                        </div>
+                                                        <div style="font-weight:700; color:#047857; line-height:1.35;">
+                                                            <?= htmlspecialchars(!empty($sh['action']) ? $sh['action'] : '-') ?>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Part / Sparepart -->
+                                                    <div style="background:#FFFFFF; padding:8px 10px; border-radius:8px; border:1px solid #FDE68A; border-left:3px solid #F59E0B;">
+                                                        <div style="font-size:10px; font-weight:800; color:#92400E; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
+                                                            <i class="fa fa-cogs" style="font-size:11px; color:#F59E0B;"></i> Part / Sparepart
+                                                        </div>
+                                                        <div style="font-weight:700; color:#B45309; line-height:1.35;">
+                                                            <?= htmlspecialchars(!empty($sh['part']) ? $sh['part'] : '-') ?>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Redaman -->
+                                                    <div style="background:#FFFFFF; padding:8px 10px; border-radius:8px; border:1px solid #E2E8F0; border-left:3px solid #3B82F6;">
+                                                        <div style="font-size:10px; font-weight:800; color:#1E40AF; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
+                                                            <i class="fa fa-chart-line" style="font-size:11px; color:#3B82F6;"></i> Redaman (Bef ➔ Aft)
+                                                        </div>
+                                                        <div style="font-weight:700; color:#0F172A; margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                                            <span style="background:#FEE2E2; color:#991B1B; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:800;">
+                                                                <?= htmlspecialchars(!empty($sh['red_bef']) ? $sh['red_bef'] : '-') ?> dBm
+                                                            </span>
+                                                            <i class="fa fa-arrow-right" style="font-size:10px; color:#94A3B8;"></i>
+                                                            <span style="background:#DCFCE7; color:#166534; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:800;">
+                                                                <?= htmlspecialchars(!empty($sh['red_aft']) ? $sh['red_aft'] : '-') ?> dBm
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <?php if (!empty($sh['ont_bef']) || !empty($sh['ont_aft'])): ?>
+                                                    <!-- Perubahan ONT SN -->
+                                                    <div style="background:#FFFFFF; padding:8px 10px; border-radius:8px; border:1px solid #E2E8F0; border-left:3px solid #8B5CF6;">
+                                                        <div style="font-size:10px; font-weight:800; color:#5B21B6; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
+                                                            <i class="fa fa-network-wired" style="font-size:11px; color:#8B5CF6;"></i> Modul ONT (S/N)
+                                                        </div>
+                                                        <div style="font-weight:700; color:#0F172A; margin-top:2px; font-size:11px;">
+                                                            <?= htmlspecialchars($sh['ont_bef'] ?: '-') ?> ➔ <?= htmlspecialchars($sh['ont_aft'] ?: '-') ?>
+                                                        </div>
+                                                    </div>
+                                                    <?php endif; ?>
+
+                                                    <?php if (!empty($sh['keterangan'])): ?>
+                                                    <!-- Keterangan -->
+                                                    <div style="grid-column: 1 / -1; background:#FFFFFF; padding:8px 10px; border-radius:8px; border:1px solid #E2E8F0;">
+                                                        <div style="font-size:10px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
+                                                            <i class="far fa-comment-alt" style="font-size:11px; color:#64748B;"></i> Keterangan Laporan
+                                                        </div>
+                                                        <div style="font-weight:600; color:#334155; line-height:1.4; font-size:11.5px;">
+                                                            <?= nl2br(htmlspecialchars($sh['keterangan'])) ?>
+                                                        </div>
+                                                    </div>
+                                                    <?php endif; ?>
+
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
 
                 </div><!-- end two-col -->
 

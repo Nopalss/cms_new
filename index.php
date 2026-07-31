@@ -11,25 +11,34 @@ require __DIR__ . "/controllers/LoginController.php";
     <meta name="description" content="Login page example" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <!--begin::Fonts-->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700&display=swap" />
+
     <!--begin::Page Custom Styles(used by this page)-->
-    <link href="assets/css/pages/login/classic/login-4.css" rel="stylesheet" type="text/css" />
+    <link href="<?= asset_ver('assets/css/pages/login/classic/login-4.css') ?>" rel="stylesheet" type="text/css" />
     <!--end::Page Custom Styles-->
 
     <!--begin::Global Theme Styles(used by all pages)-->
-    <link href="assets/plugins/global/plugins.bundle.css" rel="stylesheet" type="text/css" />
-    <!-- <link href="assets/plugins/custom/prismjs/prismjs.bundle.css" rel="stylesheet" type="text/css" /> -->
-    <link href="assets/css/style.bundle.css" rel="stylesheet" type="text/css" />
+    <link href="<?= asset_ver('assets/plugins/global/plugins.bundle.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= asset_ver('assets/css/style.bundle.css') ?>" rel="stylesheet" type="text/css" />
     <!--end::Global Theme Styles-->
 
     <!--begin::Layout Themes(used by all pages)-->
+    <link href="<?= asset_ver('assets/css/themes/layout/brand/dark.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= asset_ver('assets/css/themes/layout/aside/dark.css') ?>" rel="stylesheet" type="text/css" />
+    <!--end::Layout Themes-->
 
-    <!-- <link href="assets/css/themes/layout/header/base/light.css" rel="stylesheet" type="text/css" />
-    <link href="assets/css/themes/layout/header/menu/light.css" rel="stylesheet" type="text/css" /> -->
-    <link href="assets/css/themes/layout/brand/dark.css" rel="stylesheet" type="text/css" />
-    <link href="assets/css/themes/layout/aside/dark.css" rel="stylesheet" type="text/css" /> <!--end::Layout Themes-->
+    <link rel="shortcut icon" href="<?= asset_ver('assets/media/favicon.ico') ?>" />
 
-    <link rel="shortcut icon" href="assets/media/favicon.ico" />
+    <!-- Progressive Web App (PWA) Meta & Manifest -->
+    <link rel="manifest" href="<?= asset_ver('manifest.json') ?>">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="JTracks">
+    <link rel="apple-touch-icon" href="<?= asset_ver('assets/media/logos/icon-192.png') ?>">
+    <meta name="theme-color" content="#0E7C7B">
 </head>
 <!--end::Head-->
 
@@ -68,16 +77,18 @@ require __DIR__ . "/controllers/LoginController.php";
                             <button id="kt_login_signin_submit" type="submit" name="login" class="btn btn-primary font-weight-bold px-9 py-4 my-3 mx-4">Login</button>
                         </form>
                     </div>
-                    <br>
 
-                    <!-- <a href="apps/" class="px-9 mt-5 py-3 my-3 mx-4 inline-flex items-center gap-2 text-blue-500 border border-blue-500 hover:bg-blue-50 font-semibold text-base rounded-xl transition-all duration-150">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                        Download APK
-                    </a> -->
+                    <!-- Tombol Download / Install Application Mobile -->
+                    <div class="mt-6 pt-4" style="border-top: 1px dashed #E4E6EF;">
+                        <button type="button" id="btnDownloadApp" class="btn btn-outline-primary font-weight-bolder py-3 px-6 d-inline-flex align-items-center justify-content-center" style="border-radius: 12px; border-width: 2px; transition: all 0.2s;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            📲 Download &amp; Install App Mobile
+                        </button>
+                    </div>
                     <!--end::Login Sign in form-->
 
                     <!--begin::Login forgot password form-->
@@ -168,15 +179,65 @@ require __DIR__ . "/controllers/LoginController.php";
     <!--end::Global Config-->
 
     <!--begin::Global Theme Bundle(used by all pages)-->
-    <script src="assets/plugins/global/plugins.bundle.js"></script>
-    <!-- <script src="assets/plugins/custom/prismjs/prismjs.bundle.js"></script> -->
-    <!-- <script src="assets/js/scripts.bundle.js"></script> -->
+    <script src="<?= asset_ver('assets/plugins/global/plugins.bundle.js') ?>"></script>
     <!--end::Global Theme Bundle-->
 
 
-    <!--begin::Page Scripts(used by this page)-->
-    <!-- <script src="assets/js/pages/custom/login/login-general.js"></script> -->
-    <!--end::Page Scripts-->
+    <!-- PWA Installation Handler Script -->
+    <script>
+        let pwaInstallPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            pwaInstallPrompt = e;
+            const btn = document.getElementById('btnDownloadApp');
+            if (btn) {
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    📲 Download & Install JTracks App
+                `;
+            }
+        });
+
+        document.getElementById('btnDownloadApp')?.addEventListener('click', () => {
+            if (pwaInstallPrompt) {
+                pwaInstallPrompt.prompt();
+                pwaInstallPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('[PWA] User accepted installation');
+                    }
+                    pwaInstallPrompt = null;
+                });
+            } else {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIOS) {
+                    if (typeof Swal === 'function') {
+                        Swal.fire({
+                            title: 'Install di iPhone (Safari)',
+                            html: '<div style="text-align:left; font-size:13px; line-height:1.6;">1. Klik tombol <strong>Share 📤</strong> di bagian bawah Safari.<br>2. Gulir ke bawah dan pilih <strong>"Add to Home Screen" ➕</strong> (Tambah ke Layar Utama).</div>',
+                            icon: 'info',
+                            confirmButtonText: 'Mengerti'
+                        });
+                    } else {
+                        alert("Untuk iPhone:\n1. Klik tombol Share (ikon panah ke atas) di Safari.\n2. Pilih 'Add to Home Screen' (Tambah ke Layar Utama).");
+                    }
+                } else {
+                    if (typeof Swal === 'function') {
+                        Swal.fire({
+                            title: 'Install Aplikasi JTracks',
+                            html: '<div style="text-align:left; font-size:13px; line-height:1.6;">1. Klik menu titik tiga (<strong>⋮</strong>) di pojok kanan atas browser HP kamu.<br>2. Pilih <strong>"Install Aplikasi"</strong> atau <strong>"Tambah ke Layar Utama"</strong>.</div>',
+                            icon: 'info',
+                            confirmButtonText: 'Mengerti'
+                        });
+                    } else {
+                        alert("Untuk meng-install aplikasi JTracks:\n1. Buka menu titik tiga (⋮) di pojok kanan atas Chrome/Browser HP.\n2. Pilih 'Install Aplikasi' atau 'Tambahkan ke Layar Utama'.");
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 <!--end::Body-->
 <!-- sweetalert -->

@@ -95,7 +95,7 @@ try {
             t.nama            AS tim_nama,
             COALESCE(q.netpay_id, '-') AS netpay_id,
             q.created_at      AS tanggal_komplain,
-            COALESCE(c.name, 'Fasilitas Umum / Jaringan') AS nama,
+            COALESCE(c.name, rm.nama, 'Infrastruktur Jaringan') AS nama,
             c.phone,
             c.phone_contact,
             COALESCE(NULLIF(c.phone_contact, ''), c.phone, '-') AS no_tlp,

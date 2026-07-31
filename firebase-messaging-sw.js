@@ -22,8 +22,8 @@ messaging.onBackgroundMessage((payload) => {
     body: (payload.notification && payload.notification.body)
       ? payload.notification.body
       : ((payload.data && payload.data.body) ? payload.data.body : ''),
-    icon: '/cms/assets/media/logos/favicon.ico',
-    badge: '/cms/assets/media/logos/favicon.ico',
+    icon: '/cms/assets/media/logos/icon-192.png',
+    badge: '/cms/assets/media/logos/icon-192.png',
     vibrate: [200, 100, 200],
     requireInteraction: true,
     tag: 'jtracks-task-' + (payload.data?.schedule_id || Date.now()),
@@ -35,7 +35,8 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = self.location.origin + '/pages/schedule/role/teknisi.php';
+  const basePath = self.location.pathname.replace('/firebase-messaging-sw.js', '');
+  const targetUrl = self.location.origin + basePath + '/pages/schedule/role/teknisi.php';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (let client of windowClients) {
@@ -48,4 +49,13 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+// PWA Service Worker Lifecycle
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
 });

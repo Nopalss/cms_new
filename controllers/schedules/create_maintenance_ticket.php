@@ -33,6 +33,7 @@ $noc_id          = sanitize($_POST['noc_id'] ?? '');
 $perumahan       = sanitize($_POST['perumahan'] ?? '');
 $location        = sanitize($_POST['location'] ?? '');
 $sharelock       = sanitize($_POST['sharelock'] ?? '');
+$nama            = sanitize($_POST['nama'] ?? '');
 
 /*
 =====================================
@@ -42,6 +43,9 @@ VALIDASI
 
 if ($ticket_type === 'non_customer') {
     $netpay_id = null;
+    if (empty($nama)) {
+        $nama = 'Infrastruktur Jaringan';
+    }
     $required = compact(
         'perumahan',
         'location',
@@ -52,6 +56,7 @@ if ($ticket_type === 'non_customer') {
         'noc_id'
     );
 } else {
+    $nama = null;
     $required = compact(
         'netpay_id',
         'aduan_pelanggan',
@@ -141,13 +146,14 @@ try {
     // 2. request_maintenance — detail komplain + lokasi non-customer
     $stmt = $pdo->prepare("
         INSERT INTO request_maintenance
-            (rm_id, queue_id, type_issue, deskripsi_issue, server, verifikasi_noc, request_by, perumahan, location, sharelock)
+            (rm_id, queue_id, nama, type_issue, deskripsi_issue, server, verifikasi_noc, request_by, perumahan, location, sharelock)
         VALUES
-            (:rm_id, :queue_id, :type_issue, :deskripsi_issue, :server, :verifikasi_noc, :request_by, :perumahan, :location, :sharelock)
+            (:rm_id, :queue_id, :nama, :type_issue, :deskripsi_issue, :server, :verifikasi_noc, :request_by, :perumahan, :location, :sharelock)
     ");
     $stmt->execute([
         ':rm_id'           => $rm_id,
         ':queue_id'        => $queue_id,
+        ':nama'            => $nama,
         ':type_issue'      => 'Maintenance',
         ':deskripsi_issue' => $aduan_pelanggan,
         ':server'          => $server,

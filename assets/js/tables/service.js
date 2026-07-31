@@ -38,9 +38,10 @@ var KTDatatableLocalSortDemo = function () {
         }
 
         var html = rows.map(function(row) {
-            var initial = (row.perumahan || row.netpay_id || '?').substring(0, 2).toUpperCase();
-            var tgl = row.created_at ?
-                new Date(row.created_at).toLocaleDateString('id-ID', {
+            var initial = (row.name || row.perumahan || row.netpay_id || '?').substring(0, 2).toUpperCase();
+            var rawTgl = row.tanggal || row.created_at;
+            var tgl = rawTgl ?
+                new Date(rawTgl).toLocaleDateString('id-ID', {
                     day: '2-digit',
                     month: 'short',
                     year: 'numeric'
@@ -51,11 +52,11 @@ var KTDatatableLocalSortDemo = function () {
                 <div class="mrl-avatar">${initial}</div>
                 <div class="mrl-body">
                     <div class="mrl-top">
-                        <div class="mrl-title">${row.perumahan ?? '-'}</div>
+                        <div class="mrl-title">${row.name || '-'}</div>
                         <div class="mrl-date">${tgl}</div>
                     </div>
-                    <div class="mrl-sub">${row.srv_id ?? '-'} &middot; ${row.netpay_id ?? '-'}</div>
-                    <div class="mrl-desc"><i class="fa fa-clock mr-1"></i>Durasi: ${row.durasi ?? '-'}</div>
+                    <div class="mrl-sub">ID: ${row.netpay_id || '-'} &middot; ${row.perumahan || '-'}</div>
+                    <div class="mrl-desc" style="color:#DC2626;font-weight:600"><i class="fa fa-exclamation-circle mr-1"></i>Problem: ${row.problem || '-'}</div>
                     <div class="mrl-actions d-flex justify-content-end mt-3">
                         <a href="${HOST_URL}pages/service_report/detail.php?id=${row.srv_id}" class="btn btn-sm btn-light-info btn-icon mr-2">
                             <i class="flaticon-eye"></i>
@@ -111,29 +112,31 @@ var KTDatatableLocalSortDemo = function () {
                 key: 'generalSearch'
             },
             columns: [{
-                field: 'srv_id',
-                title: 'Service Id',
-                template: row => `<span style="font-size:0.885rem">${row.srv_id}</span>`
-            }, {
                 field: 'netpay_id',
-                title: 'Netpay Id',
-                template: row => `<span style="font-size:0.885rem">${row.netpay_id}</span>`
+                title: 'Netpay ID',
+                template: row => `<span style="font-size:0.885rem;font-weight:600">${row.netpay_id || '-'}</span>`
             }, {
-                field: 'durasi',
-                title: 'Durasi',
-                template: row => `<span style="font-size:0.885rem">${row.durasi || '-'}</span>`
-            }, {
-                field: 'created_at',
-                title: 'Tanggal',
-                template: function (row) {
-                    const date = new Date(row.created_at);
-                    const formattedDate = date.toLocaleDateString('id-ID', { year: 'numeric', month: 'numeric', day: 'numeric' });
-                    return `<span style="font-size:0.885rem">${formattedDate}</span>`;
-                }
+                field: 'name',
+                title: 'Nama',
+                template: row => `<span style="font-size:0.885rem;font-weight:600">${row.name || '-'}</span>`
             }, {
                 field: 'perumahan',
                 title: 'Perumahan',
                 template: row => `<span style="font-size:0.885rem">${row.perumahan || '-'}</span>`
+            }, {
+                field: 'problem',
+                title: 'Problem',
+                template: row => `<span style="font-size:0.885rem;color:#DC2626;font-weight:600">${row.problem || '-'}</span>`
+            }, {
+                field: 'tanggal',
+                title: 'Tanggal',
+                template: function (row) {
+                    const rawTgl = row.tanggal || row.created_at;
+                    if (!rawTgl) return '-';
+                    const date = new Date(rawTgl);
+                    const formattedDate = date.toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
+                    return `<span style="font-size:0.885rem">${formattedDate}</span>`;
+                }
             }, {
                 field: 'Actions',
                 title: 'Actions',
@@ -143,13 +146,13 @@ var KTDatatableLocalSortDemo = function () {
                 autoHide: false,
                 template: function (row) {
                     return `
-                        <a href="${HOST_URL}pages/service_report/detail.php?id=${row.srv_id}" class="btn btn-sm btn-info btn-icon mr-2">
+                        <a href="${HOST_URL}pages/service_report/detail.php?id=${row.srv_id}" class="btn btn-sm btn-info btn-icon mr-2" title="Detail">
                             <i class="flaticon-eye"></i>
                         </a>
-                        <a href="${HOST_URL}pages/service_report/update.php?id=${row.srv_id}" class="btn btn-sm btn-warning btn-icon mr-2">
+                        <a href="${HOST_URL}pages/service_report/update.php?id=${row.srv_id}" class="btn btn-sm btn-warning btn-icon mr-2" title="Edit">
                             <i class="flaticon-edit"></i>
                         </a>
-                        <a onclick="confirmDeleteTemplate('${row.srv_key}', 'controllers/report/service/delete.php')" class="btn btn-sm btn-danger btn-icon">
+                        <a onclick="confirmDeleteTemplate('${row.srv_key}', 'controllers/report/service/delete.php')" class="btn btn-sm btn-danger btn-icon" title="Hapus">
                             <i class="flaticon-delete"></i>
                         </a>
                     `;

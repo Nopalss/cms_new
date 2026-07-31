@@ -1,40 +1,64 @@
 <!--begin::Body-->
 <?php
 require_once __DIR__ . '/config.php';
-$role = $_SESSION['role'] ?? '';
-$jabatan = strtolower(trim($_SESSION['jabatan'] ?? 'superadmin'));
+$role         = strtolower(trim($_SESSION['role'] ?? ''));
+$jabatan      = strtolower(trim($_SESSION['jabatan'] ?? ''));
 $current_menu = $_SESSION['menu'] ?? '';
 
 /**
  * Pengecekan Akses Menu berdasarkan Role & Jabatan:
  * - SuperAdmin : Semua Menu
  * - Admin      : Dashboard, Registrasi, Request (IKR/Service/Dismantle), Customers, Paket Internet, User
- * - NOC        : Dashboard, Queue, Schedule, All Reports, Stok ONT, Teknisi Report, Tim Teknisi, Kinerja Tim SAW
- * - Manager    : Dashboard, All Reports (IKR, Service, Dismantle, Teknisi Report)
- * - Teknisi    : Schedule, All Reports, Stok ONT
+ * - NOC        : Dashboard, ALL tiketing, All Reports, Stok ONT, Teknisi Report, Tim Teknisi, Kinerja Tim SAW, User, Paket Internet, Customers, Rangking
+ * - Manager    : Dashboard, All Reports (IKR, Service, Dismantle, Teknisi Report), User, Paket Internet, Kinerja Tim SAW, Rangking
+ * - Teknisi    : Schedule/jadwal pekerjaan, All Reports, Teknisi Report.
  */
 function canAccessMenu($menuKey, $role, $jabatan) {
-    if ($role === 'teknisi') {
-        return in_array($menuKey, ['schedule', 'ikr', 'service', 'dismantle', 'ont_stock']);
-    }
+    $role    = strtolower(trim($role));
+    $jabatan = strtolower(trim($jabatan));
 
-    if ($jabatan === 'superadmin') {
+    // 1. SuperAdmin (akses semua menu)
+    if ($role === 'superadmin' || $jabatan === 'superadmin') {
         return true;
     }
 
-    if ($jabatan === 'admin') {
-        return in_array($menuKey, ['dashboard', 'registrasi', 'request', 'customer', 'packages', 'user']);
+    // 2. NOC (diutamakan sebelum Admin umum)
+    if ($jabatan === 'noc' || $role === 'noc') {
+        return in_array($menuKey, [
+            'dashboard', 'request', 
+            'ticketing', 'ticket_instalasi', 'ticket_service', 
+            'ikr', 'service', 'dismantle', 
+            'ont_stock', 'teknisi', 'tim_teknisi', 'team_saw', 
+            'user', 'packages', 'customer', 'ranking'
+        ]);
     }
 
-    if ($jabatan === 'noc') {
-        return in_array($menuKey, ['dashboard', 'queue', 'schedule', 'ikr', 'service', 'dismantle', 'ont_stock', 'teknisi', 'tim_teknisi', 'team_saw']);
+    // 3. Manager
+    if ($jabatan === 'manager' || $jabatan === 'manajer' || $role === 'manager' || $role === 'manajer') {
+        return in_array($menuKey, [
+            'dashboard', 'request', 'ikr', 'service', 'dismantle', 
+            'teknisi', 'user', 'packages', 'team_saw', 'ranking'
+        ]);
     }
 
-    if ($jabatan === 'manager' || $jabatan === 'manajer') {
-        return in_array($menuKey, ['dashboard', 'ikr', 'service', 'dismantle', 'teknisi']);
+    // 4. Teknisi
+    if ($jabatan === 'teknisi' || $role === 'teknisi') {
+        return in_array($menuKey, [
+            'schedule', 'request', 'ikr', 'service', 'dismantle', 'teknisi'
+        ]);
     }
 
-    return true;
+    // 5. Admin umum
+    if ($jabatan === 'admin' || $role === 'admin') {
+        return in_array($menuKey, [
+            'dashboard', 'registrasi', 'request', 
+            'ticketing', 'ticket_instalasi', 'ticket_service', 
+            'customer', 'packages', 'user'
+        ]);
+    }
+
+    // Fallback: jika jabatan/role tidak dikenali, tolak akses
+    return false;
 }
 
 // ==========================================
@@ -43,6 +67,8 @@ function canAccessMenu($menuKey, $role, $jabatan) {
 $menuKeyMap = [
     'dashboard'           => 'dashboard',
     'registrasi'          => 'registrasi',
+    'ticket_instalasi'    => 'ticket_instalasi',
+    'ticket_service'      => 'ticket_service',
     'request ikr'         => 'request',
     'request maintenance' => 'request',
     'request dismantle'   => 'request',
@@ -58,6 +84,7 @@ $menuKeyMap = [
     'status_master'       => 'status_master',
     'tim_teknisi'         => 'tim_teknisi',
     'team_saw'            => 'team_saw',
+    'ranking'             => 'ranking',
     'user'                => 'user',
 ];
 
@@ -149,69 +176,51 @@ if (!empty($current_menu) && isset($menuKeyMap[$current_menu])) {
                                 </li>
                             <?php endif; ?>
 
-                            <!-- Registrasi -->
-                            <?php if (canAccessMenu('registrasi', $role, $jabatan)): ?>
-                                <li class="menu-item <?= ($current_menu == 'registrasi') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
-                                    <a href="<?= BASE_URL ?>pages/registrasi/" class="menu-link">
-                                        <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><polygon points="0 0 24 0 24 24 0 24"/><path d="M18,8 L16,8 C15.4477153,8 15,7.55228475 15,7 C15,6.44771525 15.4477153,6 16,6 L18,6 L18,4 C18,3.44771525 18.4477153,3 19,3 C19.5522847,3 20,3.44771525 20,4 L20,6 L22,6 C22.5522847,6 23,6.44771525 23,7 C23,7.55228475 22.5522847,8 22,8 L20,8 L20,10 C20,10.5522847 19.5522847,11 19,11 C18.4477153,11 18,10.5522847 18,10 L18,8 Z M9,11 C6.790861,11 5,9.209139 5,7 C5,4.790861 6.790861,3 9,3 C11.209139,3 13,4.790861 13,7 C13,9.209139 11.209139,11 9,11 Z" fill="#000000" opacity="0.3"/><path d="M0.00065168429,20.1992055 C0.388258525,15.4265159 4.26191235,13 8.98334134,13 C13.7712164,13 17.7048837,15.2931929 17.9979143,20.2 C18.0095879,20.3954741 17.9979143,21 17.2466999,21 C13.541124,21 8.03472472,21 0.727502227,21 C0.476712155,21 -0.0204617505,20.45918 0.00065168429,20.1992055 Z" fill="#000000"/></g></svg></span>
-                                        <span class="menu-text">Registrasi</span>
+                            <!-- Jadwal Tugas -->
+                            <?php if (canAccessMenu('schedule', $role, $jabatan)): ?>
+                                <li class="menu-item <?= ($current_menu == 'schedule') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
+                                    <a href="<?= BASE_URL ?>pages/schedule/" class="menu-link">
+                                        <span class="svg-icon menu-icon svg-icon-2x">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
+                                                <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                    <rect x="0" y="0" width="24" height="24"/>
+                                                    <path d="M6,3 L18,3 C19.1045695,3 20,3.8954305 20,5 L20,19 C20,20.1045695 19.6568542,21 18,21 L6,21 C4.34314575,21 3,20.1045695 3,19 L3,5 C3,3.8954305 3.8954305,3 6,3 Z" fill="#000000" opacity="0.3"/>
+                                                    <path d="M7,7 L17,7 C17.5522847,7 18,7.44771525 18,8 C18,8.55228475 17.5522847,9 17,9 L7,9 C6.44771525,9 6,8.55228475 6,8 C6,7.44771525 6.44771525,7 7,7 Z M7,11 L17,11 C17.5522847,11 18,11.44771525 18,12 C18,12.5522847 17.5522847,13 17,13 L7,13 C6.44771525,13 6,12.5522847 6,12 C6,11.44771525 6.44771525,11 7,11 Z M7,15 L13,15 C13.5522847,15 14,15.4477153 14,16 C14,16.5522847 13.5522847,17 13,17 L7,17 C6.44771525,17 6,16.5522847 6,16 C6,15.4477153 6.44771525,15 7,15 Z" fill="#000000"/>
+                                                </g>
+                                            </svg>
+                                        </span>
+                                        <span class="menu-text">Jadwal Tugas</span>
                                     </a>
                                 </li>
                             <?php endif; ?>
 
-                            <!-- Request Submenu -->
-                            <?php if (canAccessMenu('request', $role, $jabatan)): ?>
-                                <?php $is_req_active = in_array($current_menu, ['request ikr', 'request maintenance', 'request dismantle']); ?>
-                                <li class="menu-item menu-item-submenu <?= $is_req_active ? 'menu-item-open' : '' ?>" aria-haspopup="true" data-menu-toggle="hover">
+                            <!-- Tiketing Submenu -->
+                            <?php if (canAccessMenu('ticketing', $role, $jabatan)): ?>
+                                <?php $is_ticket_active = in_array($current_menu, ['ticket_instalasi', 'ticket_service']); ?>
+                                <li class="menu-item menu-item-submenu <?= $is_ticket_active ? 'menu-item-open' : '' ?>" aria-haspopup="true" data-menu-toggle="hover">
                                     <a href="javascript:;" class="menu-link menu-toggle">
                                         <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><path d="M4,16 L5,16 C5.55228475,16 6,16.4477153 6,17 C6,17.5522847 5.55228475,18 5,18 L4,18 C3.44771525,18 3,17.5522847 3,17 C3,16.4477153 3.44771525,16 4,16 Z M1,11 L5,11 C5.55228475,11 6,11.4477153 6,12 C6,12.5522847 5.55228475,13 5,13 L1,13 C0.44771525,13 6.76353751e-17,12.5522847 0,12 C-6.76353751e-17,11.4477153 0.44771525,11 1,11 Z M3,6 L5,6 C5.55228475,6 6,6.44771525 6,7 C6,7.55228475 5.55228475,8 5,8 L3,8 C2.44771525,8 2,7.55228475 2,7 C2,6.44771525 2.44771525,6 3,6 Z" fill="#000000" opacity="0.3"/><path d="M10,6 L22,6 C23.1045695,6 24,6.8954305 24,8 L24,16 C24,17.1045695 23.1045695,18 22,18 L10,18 C8.8954305,18 8,17.1045695 8,16 L8,8 C8,6.8954305 8.8954305,6 10,6 Z M21.0849395,8.0718316 L16,10.7185839 L10.9150605,8.0718316 C10.6132433,7.91473331 10.2368262,8.02389331 10.0743092,8.31564728 C9.91179228,8.60740125 10.0247174,8.9712679 10.3265346,9.12836619 L15.705737,11.9282847 C15.8894428,12.0239051 16.1105572,12.0239051 16.294263,11.9282847 L21.6734654,9.12836619 C21.9752826,8.9712679 22.0882077,8.60740125 21.9256908,8.31564728 C21.7631738,8.02389331 21.3867567,7.91473331 21.0849395,8.0718316 Z" fill="#000000"/></g></svg></span>
-                                        <span class="menu-text">Request</span>
+                                        <span class="menu-text">Tiketing</span>
                                         <i class="menu-arrow"></i>
                                     </a>
                                     <div class="menu-submenu">
                                         <i class="menu-arrow"></i>
                                         <ul class="menu-subnav">
-                                            <li class="menu-item menu-item-parent" aria-haspopup="true"><span class="menu-link"><span class="menu-text">Request</span></span></li>
-                                            <li class="menu-item <?= ($current_menu == 'request ikr') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
-                                                <a href="<?= BASE_URL ?>pages/request/ikr/" class="menu-link">
+                                            <li class="menu-item menu-item-parent" aria-haspopup="true"><span class="menu-link"><span class="menu-text">Tiketing</span></span></li>
+                                            <li class="menu-item <?= ($current_menu == 'ticket_instalasi') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
+                                                <a href="<?= BASE_URL ?>pages/ticketing/instalasi/dashboard.php" class="menu-link" target="_blank">
                                                     <i class="menu-bullet menu-bullet-dot"><span></span></i>
-                                                    <span class="menu-text">Request IKR</span>
+                                                    <span class="menu-text">Tiket Instalasi ↗</span>
                                                 </a>
                                             </li>
-                                            <li class="menu-item <?= ($current_menu == 'request maintenance') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
-                                                <a href="<?= BASE_URL ?>pages/request/maintenance/" class="menu-link">
+                                            <li class="menu-item <?= ($current_menu == 'ticket_service') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
+                                                <a href="<?= BASE_URL ?>pages/ticketing/service/dashboard.php" class="menu-link" target="_blank">
                                                     <i class="menu-bullet menu-bullet-dot"><span></span></i>
-                                                    <span class="menu-text">Request Service</span>
-                                                </a>
-                                            </li>
-                                            <li class="menu-item <?= ($current_menu == 'request dismantle') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
-                                                <a href="<?= BASE_URL ?>pages/request/dismantle/" class="menu-link">
-                                                    <i class="menu-bullet menu-bullet-dot"><span></span></i>
-                                                    <span class="menu-text">Request Dismantle</span>
+                                                    <span class="menu-text">Tiket Service ↗</span>
                                                 </a>
                                             </li>
                                         </ul>
                                     </div>
-                                </li>
-                            <?php endif; ?>
-
-                            <!-- Queue -->
-                            <?php if (canAccessMenu('queue', $role, $jabatan)): ?>
-                                <li class="menu-item <?= ($current_menu == 'queue') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
-                                    <a href="<?= BASE_URL ?>pages/queue/" class="menu-link">
-                                        <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><path d="M8,3 L8,3.5 C8,4.32842712 8.67157288,5 9.5,5 L14.5,5 C15.3284271,5 16,4.32842712 16,3.5 L16,3 L18,3 C19.1045695,3 20,3.8954305 20,5 L20,21 C20,22.1045695 19.1045695,23 18,23 L6,23 C4.8954305,23 4,22.1045695 4,21 L4,5 C4,3.8954305 4.8954305,3 6,3 L8,3 Z" fill="#000000" opacity="0.3"/><path d="M11,2 C11,1.44771525 11.4477153,1 12,1 C12.5522847,1 13,1.44771525 13,2 L14.5,2 C14.7761424,2 15,2.22385763 15,2.5 L15,3.5 C15,3.77614237 14.7761424,4 14.5,4 L9.5,4 C9.22385763,4 9,3.77614237 9,3.5 L9,2.5 C9,2.22385763 9.22385763,2 9.5,2 L11,2 Z" fill="#000000"/><rect fill="#000000" opacity="0.3" x="10" y="9" width="7" height="2" rx="1"/><rect fill="#000000" opacity="0.3" x="7" y="9" width="2" height="2" rx="1"/><rect fill="#000000" opacity="0.3" x="7" y="13" width="2" height="2" rx="1"/><rect fill="#000000" opacity="0.3" x="10" y="13" width="7" height="2" rx="1"/><rect fill="#000000" opacity="0.3" x="7" y="17" width="2" height="2" rx="1"/><rect fill="#000000" opacity="0.3" x="10" y="17" width="7" height="2" rx="1"/></g></svg></span>
-                                        <span class="menu-text">Queue</span>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-
-                            <!-- Schedule -->
-                            <?php if (canAccessMenu('schedule', $role, $jabatan)): ?>
-                                <li class="menu-item <?= ($current_menu == 'schedule') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
-                                    <a href="<?= BASE_URL ?>pages/schedule/" class="menu-link">
-                                        <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><rect fill="#000000" opacity="0.3" x="4" y="4" width="4" height="4" rx="2"/><rect fill="#000000" x="4" y="10" width="4" height="4" rx="2"/><rect fill="#000000" x="10" y="4" width="4" height="4" rx="2"/><rect fill="#000000" x="10" y="10" width="4" height="4" rx="2"/><rect fill="#000000" x="16" y="4" width="4" height="4" rx="2"/><rect fill="#000000" x="16" y="10" width="4" height="4" rx="2"/><rect fill="#000000" x="4" y="16" width="4" height="4" rx="2"/><rect fill="#000000" x="10" y="16" width="4" height="4" rx="2"/><rect fill="#000000" x="16" y="16" width="4" height="4" rx="2"/></g></svg></span>
-                                        <span class="menu-text">Schedule</span>
-                                    </a>
                                 </li>
                             <?php endif; ?>
 
@@ -241,6 +250,16 @@ if (!empty($current_menu) && isset($menuKeyMap[$current_menu])) {
                                     <a href="<?= BASE_URL ?>pages/dismantle/" class="menu-link">
                                         <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><path d="M6,8 L6,20.5 C6,21.3284271 6.67157288,22 7.5,22 L16.5,22 C17.3284271,22 18,21.3284271 18,20.5 L18,8 L6,8 Z" fill="#000000"/><path d="M14,4.5 L14,4 C14,3.44771525 13.5522847,3 13,3 L11,3 C10.4477153,3 10,3.44771525 10,4 L10,4.5 L5.5,4.5 C5.22385763,4.5 5,4.72385763 5,5 L5,5.5 C5,5.77614237 5.22385763,6 5.5,6 L18.5,6 C18.7761424,6 19,5.77614237 19,5.5 L19,5 C19,4.72385763 18.7761424,4.5 18.5,4.5 L14,4.5 Z" fill="#000000" opacity="0.3"/></g></svg></span>
                                         <span class="menu-text">Dismantle Report</span>
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+
+                            <!-- Ranking Wilayah -->
+                            <?php if (canAccessMenu('ranking', $role, $jabatan)): ?>
+                                <li class="menu-item <?= ($current_menu == 'ranking') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
+                                    <a href="<?= BASE_URL ?>pages/ranking.php" class="menu-link">
+                                        <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><rect fill="#000000" opacity="0.3" x="13" y="4" width="3" height="16" rx="1.5"/><rect fill="#000000" x="8" y="9" width="3" height="11" rx="1.5"/><rect fill="#000000" x="18" y="11" width="3" height="9" rx="1.5"/><rect fill="#000000" x="3" y="13" width="3" height="7" rx="1.5"/></g></svg></span>
+                                        <span class="menu-text">Ranking Wilayah</span>
                                     </a>
                                 </li>
                             <?php endif; ?>
@@ -277,8 +296,13 @@ if (!empty($current_menu) && isset($menuKeyMap[$current_menu])) {
 
                             <!-- Teknisi Report -->
                             <?php if (canAccessMenu('teknisi', $role, $jabatan)): ?>
+                                <?php 
+                                $teknisiReportUrl = ($role === 'teknisi' && !empty($_SESSION['id_karyawan']))
+                                    ? BASE_URL . 'pages/teknisi/detail_teknisi.php?id=' . urlencode($_SESSION['id_karyawan'])
+                                    : BASE_URL . 'pages/teknisi/';
+                                ?>
                                 <li class="menu-item <?= ($current_menu == 'teknisi') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
-                                    <a href="<?= BASE_URL ?>pages/teknisi/" class="menu-link">
+                                    <a href="<?= $teknisiReportUrl ?>" class="menu-link">
                                         <span class="svg-icon menu-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><rect x="0" y="0" width="24" height="24"/><path d="M8.46446609,11.2928932 L7.40380592,10.232233 C7.20854378,10.0369709 7.20854378,9.72038841 7.40380592,9.52512627 L8.1109127,8.81801948 C8.30617485,8.62275734 8.62275734,8.62275734 8.81801948,8.81801948 L15.1819805,15.1819805 C15.3772427,15.3772427 15.3772427,15.6938252 15.1819805,15.8890873 L14.4748737,16.5961941 C14.2796116,16.7914562 13.9630291,16.7914562 13.767767,16.5961941 L12.7071068,15.5355339 L7.05025253,21.1923882 C6.26920395,21.9734367 5.00287399,21.9734367 4.22182541,21.1923882 L2.80761184,19.7781746 C2.02656326,18.997126 2.02656326,17.7307961 2.80761184,16.9497475 L8.46446609,11.2928932 Z M4.5753788,18.0104076 C4.38011665,18.2056698 4.38011665,18.5222523 4.5753788,18.7175144 C4.77064094,18.9127766 5.08722343,18.9127766 5.28248558,18.7175144 L9.52512627,14.4748737 C9.72038841,14.2796116 9.72038841,13.9630291 9.52512627,13.767767 C9.32986412,13.5725048 9.01328163,13.5725048 8.81801948,13.767767 L4.5753788,18.0104076 Z" fill="#000000" opacity="0.3"/><path d="M16.9497475,5.63603897 L16.7788182,5.4651097 C16.5835561,5.26984755 16.5835561,4.95326506 16.7788182,4.75800292 C16.8266988,4.71012232 16.8838059,4.67246608 16.9466763,4.64731796 L19.4720576,3.63716542 C19.657766,3.56288206 19.869875,3.60641908 20.0113063,3.74785037 L20.2521496,3.98869366 C20.3935809,4.13012495 20.4371179,4.342234 20.3628346,4.52794239 L19.352682,7.05332375 C19.2501253,7.30971551 18.9591401,7.43442346 18.7027484,7.33186676 C18.6398781,7.30671864 18.5827709,7.2690624 18.5348903,7.2211818 L18.363961,7.05025253 L12.7071068,12.7071068 L11.2928932,11.2928932 L16.9497475,5.63603897 Z" fill="#000000"/></g></svg></span>
                                         <span class="menu-text">Teknisi Report</span>
                                     </a>
@@ -319,11 +343,27 @@ if (!empty($current_menu) && isset($menuKeyMap[$current_menu])) {
                             <?php if (canAccessMenu('user', $role, $jabatan)): ?>
                                 <li class="menu-item <?= ($current_menu == 'user') ? 'menu-item-active' : '' ?>" aria-haspopup="true">
                                     <a href="<?= BASE_URL ?>pages/user/" class="menu-link">
-                                        <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><polygon points="0 0 24 0 24 24 0 24"/><path d="M12,11 C9.790861,11 8,9.209139 8,7 C8,4.790861 9.790861,3 12,3 C14.209139,3 16,4.790861 16,7 C16,9.209139 11.209139,11 12,11 Z" fill="#000000" opacity="0.3"/><path d="M3.00065168,20.1992055 C3.38825852,15.4265159 7.26191235,13 11.9833413,13 C16.7712164,13 20.7048837,15.2931929 20.9979143,20.2 C21.0095879,20.3954741 20.9979143,21 20.2466999,21 C16.541124,21 11.0347247,21 3.72750223,21 C3.47671215,21 2.97953825,20.45918 3.00065168,20.1992055 Z" fill="#000000"/></g></svg></span>
+                                        <span class="svg-icon menu-icon svg-icon-2x"><svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><polygon points="0 0 24 0 24 24 0 24"/><path d="M12,11 C9.790861,11 8,9.209139 8,7 C8,4.790861 9.790861,3 12,3 C14.209139,3 16,4.790861 16,7 C16,9.209139 11.209139,11 12,11 Z" fill="#000000" opacity="0.3"/><path d="M3.00065168,20.1992055 C3.38825852,15.4265159 7.26191235,13 11.9833413,13 C16.7712164,13 20.7048837,15.2931929 20.9979143,20.2 C21.0095879,20.3954741 20.9979143,21 20.2466999,21 C16.541124,21 11.0347247,21 3.72750223,21 C3.47671215,21 -0.0204617505,20.45918 0.00065168429,20.1992055 Z" fill="#000000"/></g></svg></span>
                                         <span class="menu-text">User</span>
                                     </a>
                                 </li>
                             <?php endif; ?>
+
+                            <!-- Sign Out / Logout -->
+                            <li class="menu-item mt-6" aria-haspopup="true" style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">
+                                <a href="javascript:;" onclick="typeof logoutConfirm === 'function' ? logoutConfirm() : window.location.href='<?= BASE_URL ?>includes/signout.php'" class="menu-link">
+                                    <span class="svg-icon menu-icon svg-icon-2x">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
+                                            <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                <rect x="0" y="0" width="24" height="24"/>
+                                                <path d="M11.1223185,15.9598583 C10.4856627,16.3135544 9.67421448,16.0884872 9.32051837,15.4518315 C8.96682226,14.8151757 9.19188947,14.0037275 9.82854522,13.6500314 L14,11.3323081 L14,7.5 C14,6.67157288 14.6715729,6 15.5,6 C16.3284271,6 17,6.67157288 17,7.5 L17,12.5 C17,13.0450532 16.7029584,13.5471465 16.223185,13.8136814 L11.1223185,15.9598583 Z" fill="#F64E60" opacity="0.3"/>
+                                                <path d="M12,2 C6.4771525,2 2,6.4771525 2,12 C2,17.5228475 6.4771525,22 12,22 C17.5228475,22 22,17.5228475 22,12 C22,6.4771525 17.5228475,2 12,2 Z M12,20 C7.581722,20 4,16.418278 4,12 C4,7.581722 7.581722,4 12,4 C16.418278,4 20,7.581722 20,12 C20,16.418278 16.418278,20 12,20 Z" fill="#F64E60"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="menu-text font-weight-bolder" style="color: #F64E60 !important;">Sign Out</span>
+                                </a>
+                            </li>
 
                         </ul>
                     </div>

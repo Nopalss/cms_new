@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $stmt = $pdo->query("SELECT admin_id, name FROM admin WHERE jabatan = 'NOC' ORDER BY name ASC");
+    $stmt = $pdo->query("SELECT admin_id, name FROM admin WHERE jabatan IN ('NOC', 'SuperAdmin', 'Admin') OR jabatan IS NULL ORDER BY name ASC");
     echo json_encode([
         'status' => true,
         'data' => $stmt->fetchAll(PDO::FETCH_ASSOC)

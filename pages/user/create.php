@@ -125,17 +125,21 @@ require __DIR__ . '/../../includes/navbar.php';
                                     </div>
 
                                     <div class="form-group mb-4">
-                                        <label class="font-weight-bolder text-dark" for="username-disabled">
-                                            Username Sistem
+                                        <label class="font-weight-bolder text-dark" for="username">
+                                            Username Sistem <span class="text-danger">*</span>
                                         </label>
                                         <div class="input-group">
                                             <div class="input-group-prepend">
                                                 <span class="input-group-text bg-white border-right-0"><i class="flaticon2-user-outline-symbol text-muted"></i></span>
                                             </div>
-                                            <input id="username-disabled" type="text" class="form-control bg-light font-weight-bolder text-primary pl-3" disabled="disabled" placeholder="Otomatis terisi dari nama">
-                                            <input id="username" type="hidden" name="username">
+                                            <input id="username" type="text" class="form-control font-weight-bolder text-primary pl-3" name="username" placeholder="mis. udin123" required>
+                                            <div class="input-group-append">
+                                                <button class="btn btn-light-primary border" type="button" id="btnGenerateUsername" title="Generate Username Mudah Diingat">
+                                                    ⚡ Auto
+                                                </button>
+                                            </div>
                                         </div>
-                                        <span class="form-text text-muted font-size-xs">Username dibuat secara otomatis oleh sistem</span>
+                                        <span class="form-text text-muted font-size-xs">Format mudah diingat: <strong>nama123</strong> (misal: <em>udin123</em>). Anda dapat mengubahnya sesuai keinginan.</span>
                                     </div>
 
                                     <div class="form-group mb-4">
@@ -178,6 +182,39 @@ require __DIR__ . '/../../includes/navbar.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('name');
+    const usernameInput = document.getElementById('username');
+    const btnGenerate = document.getElementById('btnGenerateUsername');
+    let userEditedUsername = false;
+
+    function generateCatchyUsername(fullName) {
+        if (!fullName || !fullName.trim()) return '';
+        const words = fullName.trim().split(/\s+/);
+        let firstWord = words[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!firstWord) firstWord = 'user';
+        return firstWord + '123';
+    }
+
+    if (nameInput && usernameInput) {
+        nameInput.addEventListener('input', function() {
+            if (!userEditedUsername) {
+                usernameInput.value = generateCatchyUsername(nameInput.value);
+            }
+        });
+
+        usernameInput.addEventListener('input', function() {
+            userEditedUsername = true;
+            this.value = this.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+        });
+    }
+
+    if (btnGenerate && nameInput && usernameInput) {
+        btnGenerate.addEventListener('click', function() {
+            userEditedUsername = false;
+            usernameInput.value = generateCatchyUsername(nameInput.value);
+        });
+    }
+
     // Password Visibility Toggle
     const togglePasswordBtn = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('password');

@@ -913,10 +913,14 @@ require __DIR__ . '/../../includes/navbar.php';
                     '━━━━━━━━━━━━━━━━━━\n🛠️ *Teknisi*\n' + teknisiText + '\n━━━━━━━━━━━━━━━━━━';
 
                 if (navigator.share) {
-                    await navigator.share({
-                        title: 'IKR Report',
-                        text: text
-                    });
+                    try {
+                        await navigator.share({
+                            title: 'IKR Report',
+                            text: text
+                        });
+                    } catch (shareErr) {
+                        console.log('Share dibatalkan atau tidak didukung:', shareErr);
+                    }
                 } else {
                     window.open('https://wa.me/?text=' + encodeURIComponent(text));
                 }
@@ -927,20 +931,36 @@ require __DIR__ . '/../../includes/navbar.php';
                     text: 'Laporan berhasil disimpan.',
                     confirmButtonText: 'OK'
                 }).then(() => {
-
-                    window.location.href =
-                        '<?= BASE_URL ?>pages/ikr/';
-
+                    window.location.href = '<?= BASE_URL ?>pages/ikr/';
                 });
 
             } else {
-                alert(result.message || 'Gagal submit laporan.');
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
+                if (result.message && result.message.includes('sudah pernah dibuat')) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Laporan Sudah Ada',
+                        text: result.message,
+                        confirmButtonText: 'Ke List Schedule'
+                    }).then(() => {
+                        window.location.href = '<?= BASE_URL ?>pages/schedule/';
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Submit',
+                        text: result.message || 'Gagal submit laporan.'
+                    });
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                }
             }
         } catch (e) {
             console.error(e);
-            alert('Terjadi error, silakan coba lagi.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: e.message || 'Terjadi error, silakan coba lagi.'
+            });
             btn.disabled = false;
             btn.innerHTML = originalHTML;
         }

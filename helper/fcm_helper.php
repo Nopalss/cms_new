@@ -6,7 +6,7 @@ require_once __DIR__ . "/../includes/config.php";
  * Generates Google OAuth2 Access Token for Firebase Cloud Messaging (FCM) HTTP v1 API
  * using pure PHP OpenSSL functions (zero external composer dependencies).
  */
-function getFirebaseAccessToken(): ?string
+function getFirebaseAccessToken(?string &$errorDetail = null): ?string
 {
     static $cachedToken = null;
     static $tokenExpiry = 0;
@@ -17,13 +17,15 @@ function getFirebaseAccessToken(): ?string
 
     $credFile = __DIR__ . "/../includes/firebase_credentials.json";
     if (!file_exists($credFile)) {
-        error_log("[FCM] firebase_credentials.json not found in includes/");
+        $errorDetail = "File firebase_credentials.json tidak ditemukan di includes/";
+        error_log("[FCM] " . $errorDetail);
         return null;
     }
 
     $cred = json_decode(file_get_contents($credFile), true);
     if (!$cred || empty($cred['private_key']) || empty($cred['client_email'])) {
-        error_log("[FCM] Invalid firebase_credentials.json content");
+        $errorDetail = "Isi firebase_credentials.json tidak valid (private_key atau client_email kosong)";
+        error_log("[FCM] " . $errorDetail);
         return null;
     }
 
@@ -44,7 +46,8 @@ function getFirebaseAccessToken(): ?string
     $signature = '';
     $success   = openssl_sign($signatureInput, $signature, $cred['private_key'], 'SHA256');
     if (!$success) {
-        error_log("[FCM] Failed to sign JWT via OpenSSL");
+        $errorDetail = "OpenSSL gagal membuat tanda tangan JWT: " . openssl_error_string();
+        error_log("[FCM] " . $errorDetail);
         return null;
     }
 
@@ -56,8 +59,10 @@ function getFirebaseAccessToken(): ?string
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 2,
-        CURLOPT_CONNECTTIMEOUT => 2,
+        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
         CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
         CURLOPT_POSTFIELDS     => http_build_query([
             'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
@@ -66,11 +71,13 @@ function getFirebaseAccessToken(): ?string
     ]);
 
     $response = curl_exec($ch);
+    $curlErr  = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     if ($httpCode !== 200) {
-        error_log("[FCM] Failed to obtain OAuth2 token. HTTP $httpCode: $response");
+        $errorDetail = "cURL Google OAuth Failed (HTTP $httpCode): " . ($curlErr ?: $response);
+        error_log("[FCM] " . $errorDetail);
         return null;
     }
 
@@ -81,15 +88,17 @@ function getFirebaseAccessToken(): ?string
         return $cachedToken;
     }
 
+    $errorDetail = "Response OAuth2 tidak berisi access_token: " . $response;
+    error_log("[FCM] " . $errorDetail);
     return null;
 }
 
 /**
  * Sends a single FCM HTTP v1 notification message to a device token.
  */
-function sendFcmPush(string $fcmToken, string $title, string $body, array $extraData = []): bool
+function sendFcmPush(string $fcmToken, string $title, string $body, array $extraData = [], ?string &$errorDetail = null): bool
 {
-    $accessToken = getFirebaseAccessToken();
+    $accessToken = getFirebaseAccessToken($errorDetail);
     if (!$accessToken) return false;
 
     $credFile = __DIR__ . "/../includes/firebase_credentials.json";
@@ -112,6 +121,29 @@ function sendFcmPush(string $fcmToken, string $title, string $body, array $extra
                 'body'  => $body,
             ],
             'data' => $stringData,
+            'webpush' => [
+                'headers' => [
+                    'Urgency' => 'high',
+                    'TTL'     => '86400'
+                ],
+                'notification' => [
+                    'title'              => $title,
+                    'body'               => $body,
+                    'icon'               => '/cms/assets/media/logos/icon-192.png',
+                    'badge'              => '/cms/assets/media/logos/icon-192.png',
+                    'requireInteraction' => true,
+                ],
+                'fcm_options' => [
+                    'link' => '/cms/pages/schedule/role/teknisi.php'
+                ]
+            ],
+            'android' => [
+                'priority' => 'HIGH',
+                'notification' => [
+                    'sound'                 => 'default',
+                    'notification_priority' => 'PRIORITY_MAX'
+                ]
+            ]
         ]
     ];
 
@@ -119,8 +151,10 @@ function sendFcmPush(string $fcmToken, string $title, string $body, array $extra
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 2,
-        CURLOPT_CONNECTTIMEOUT => 2,
+        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
         CURLOPT_HTTPHEADER     => [
             'Authorization: Bearer ' . $accessToken,
             'Content-Type: application/json; UTF-8'
@@ -129,11 +163,13 @@ function sendFcmPush(string $fcmToken, string $title, string $body, array $extra
     ]);
 
     $res = curl_exec($ch);
+    $curlErr = curl_error($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     if ($code !== 200) {
-        error_log("[FCM] Push failed HTTP $code: $res");
+        $errorDetail = "FCM Push Failed (HTTP $code): " . ($curlErr ?: $res);
+        error_log("[FCM] " . $errorDetail);
         return false;
     }
 
@@ -156,10 +192,12 @@ function sendTeamTicketNotification(PDO $pdo, ?string $tim_id, string $schedule_
             s.job_type,
             s.date,
             q.netpay_id,
-            COALESCE(NULLIF(TRIM(c.name), ''), reg.name) AS nama_pelanggan,
+            COALESCE(NULLIF(TRIM(c.name), ''), reg.name, rm.nama, 'Infrastruktur Jaringan') AS nama_pelanggan,
             COALESCE(
                 NULLIF(TRIM(CONCAT_WS(' ', c.perumahan, c.location)), ''),
-                CONCAT_WS(' ', reg.perumahan, reg.location)
+                CONCAT_WS(' ', reg.perumahan, reg.location),
+                CONCAT_WS(' ', rm.perumahan, rm.location),
+                '-'
             ) AS alamat,
             COALESCE(reg.paket_internet, c.paket_internet) AS paket_internet,
             rm.server,
@@ -176,24 +214,37 @@ function sendTeamTicketNotification(PDO $pdo, ?string $tim_id, string $schedule_
     $stmt->execute([':schedule_id' => $schedule_id]);
     $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$ticket) return false;
+    if (!$ticket) {
+        // Fallback: Query langsung dari schedules jika JOIN kompleks tidak return data
+        $stmtFallback = $pdo->prepare("SELECT schedule_id, job_type, date FROM schedules WHERE schedule_id = :schedule_id");
+        $stmtFallback->execute([':schedule_id' => $schedule_id]);
+        $ticket = $stmtFallback->fetch(PDO::FETCH_ASSOC);
+        if ($ticket) {
+            $ticket['nama_pelanggan'] = 'Infrastruktur Jaringan';
+            $ticket['alamat']         = '-';
+            $ticket['netpay_id']     = '-';
+        } else {
+            error_log("[FCM] Schedule ID not found in database: $schedule_id");
+            return false;
+        }
+    }
 
-    // 2. Query FCM tokens of all technicians belonging to this team ($tim_id)
+    // 2. Query FCM tokens of all technicians belonging strictly to this team ($tim_id)
     $stmtTech = $pdo->prepare("
         SELECT tech_id, name, fcm_token
         FROM technician
-        WHERE tim_id = :tim_id AND fcm_token IS NOT NULL AND TRIM(fcm_token) != ''
+        WHERE (tim_id = :tim_id OR tech_id = :tim_id) AND fcm_token IS NOT NULL AND TRIM(fcm_token) != ''
     ");
     $stmtTech->execute([':tim_id' => $tim_id]);
     $techs = $stmtTech->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($techs)) {
-        error_log("[FCM] No technician FCM tokens found for tim_id: $tim_id");
+        error_log("[FCM] No technician FCM tokens found for target team/tech_id: $tim_id");
         return false;
     }
 
     // 3. Prepare Notif 1: Detail Tiket Baru (Deteksi Jenis Pekerjaan)
-    $isInstall = ($ticket['job_type'] === 'Install' || $ticket['job_type'] === 'Pemasangan' || !empty($ticket['catatan_ikr']));
+    $isInstall = ($ticket['job_type'] === 'Instalasi' || $ticket['job_type'] === 'Install' || $ticket['job_type'] === 'Pemasangan' || !empty($ticket['catatan_ikr']));
     $jobLabel  = $isInstall ? 'Pemasangan' : ($ticket['job_type'] ?: 'Service');
 
     $title1 = "📌 Tugas {$jobLabel} Baru: " . ($ticket['nama_pelanggan'] ?: 'Pelanggan');
@@ -211,6 +262,8 @@ function sendTeamTicketNotification(PDO $pdo, ?string $tim_id, string $schedule_
         'netpay_id'   => $ticket['netpay_id'] ?? '',
         'job_type'    => $ticket['job_type'] ?? '',
         'type'        => 'new_task',
+        'title'       => $title1,
+        'body'        => $body1,
     ];
 
     // 4. Query total active tickets assigned to this team today

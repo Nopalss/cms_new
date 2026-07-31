@@ -13,27 +13,55 @@ $sql = "SELECT * FROM technician";
 $stmt = $pdo->query($sql);
 $technicians = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$queue_count = $pdo->query("SELECT COUNT(*) AS total FROM queue_scheduling WHERE status = 'Pending'")->fetch(PDO::FETCH_ASSOC);
-$ikr_count = $pdo->query("
-    SELECT COUNT(*) AS total
-    FROM schedules
-    WHERE job_type = 'Instalasi'
-      AND status NOT IN ('Cancelled')
-      AND DATE(`date`) = CURDATE()
-")->fetch(PDO::FETCH_ASSOC);
+// 1. Service Today (job_type = 'Service')
 $service_count = $pdo->query("
     SELECT COUNT(*) AS total
     FROM schedules
-    WHERE job_type = 'Maintenance'
+    WHERE job_type = 'Service'
       AND status NOT IN ('Cancelled')
       AND DATE(`date`) = CURDATE()
 ")->fetch(PDO::FETCH_ASSOC);
+
+// 2. Install Today (job_type = 'Install' or 'Pemasangan')
+$ikr_count = $pdo->query("
+    SELECT COUNT(*) AS total
+    FROM schedules
+    WHERE (job_type = 'Install' OR job_type = 'Pemasangan')
+      AND status NOT IN ('Cancelled')
+      AND DATE(`date`) = CURDATE()
+")->fetch(PDO::FETCH_ASSOC);
+
+// 3. Dismantle Today
 $dismantle_count = $pdo->query("
     SELECT COUNT(*) AS total
     FROM schedules
     WHERE job_type = 'Dismantle'
       AND status NOT IN ('Cancelled')
       AND DATE(`date`) = CURDATE()
+")->fetch(PDO::FETCH_ASSOC);
+
+// 4. Kendala Lapangan (Status Kendala / Pending Issue)
+$kendala_count = $pdo->query("
+    SELECT COUNT(*) AS total
+    FROM schedules
+    WHERE status = 'Kendala'
+       OR schedule_id IN (SELECT schedule_id FROM issues_report WHERE status = 'Pending')
+")->fetch(PDO::FETCH_ASSOC);
+
+// 5. Rate Penyelesaian Hari Ini (%)
+$today_total = (int)$pdo->query("
+    SELECT COUNT(*) AS total FROM schedules WHERE DATE(`date`) = CURDATE() AND status NOT IN ('Cancelled')
+")->fetch(PDO::FETCH_ASSOC)['total'];
+
+$today_completed = (int)$pdo->query("
+    SELECT COUNT(*) AS total FROM schedules WHERE DATE(`date`) = CURDATE() AND status = 'Completed'
+")->fetch(PDO::FETCH_ASSOC)['total'];
+
+$completion_rate = ($today_total > 0) ? round(($today_completed / $today_total) * 100) : 100;
+
+// 6. Stok ONT Available
+$ont_count = $pdo->query("
+    SELECT COUNT(*) AS total FROM ont_inventory WHERE status = 'Available'
 ")->fetch(PDO::FETCH_ASSOC);
 ?>
 
@@ -72,64 +100,62 @@ $dismantle_count = $pdo->query("
     /* ── KPI cards ───────────────────────────────────────────── */
     .kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 12px;
-        margin-bottom: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+        gap: 10px;
+        margin-bottom: 1.25rem;
     }
 
     .kpi-card {
         background: #fff;
         border: 1px solid #e8edf2;
-        border-radius: 12px;
-        padding: 1.1rem 1.25rem;
+        border-radius: 10px;
+        padding: 0.75rem 0.9rem;
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.75rem;
         border-left: 4px solid;
         text-decoration: none;
-        transition: box-shadow .15s, transform .15s;
+        transition: box-shadow .15s ease, transform .15s ease;
     }
 
     .kpi-card:hover {
-        box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, .06);
         transform: translateY(-1px);
-    }
-
-    .kpi-card.kpi-queue {
-        border-left-color: #3B82F6;
-    }
-
-    .kpi-card.kpi-install {
-        border-left-color: #10B981;
     }
 
     .kpi-card.kpi-service {
         border-left-color: #F59E0B;
     }
 
+    .kpi-card.kpi-install {
+        border-left-color: #10B981;
+    }
+
     .kpi-card.kpi-dismantle {
         border-left-color: #EF4444;
     }
 
+    .kpi-card.kpi-kendala {
+        border-left-color: #F97316;
+    }
+
+    .kpi-card.kpi-ont {
+        border-left-color: #0E7C7B;
+    }
+
+    .kpi-card.kpi-rate {
+        border-left-color: #8B5CF6;
+    }
+
     .kpi-icon-wrap {
-        width: 44px;
-        height: 44px;
-        border-radius: 10px;
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.3rem;
+        font-size: 1.1rem;
         flex-shrink: 0;
-    }
-
-    .kpi-queue .kpi-icon-wrap {
-        background: #EFF6FF;
-        color: #3B82F6;
-    }
-
-    .kpi-install .kpi-icon-wrap {
-        background: #ECFDF5;
-        color: #10B981;
     }
 
     .kpi-service .kpi-icon-wrap {
@@ -137,21 +163,48 @@ $dismantle_count = $pdo->query("
         color: #F59E0B;
     }
 
+    .kpi-install .kpi-icon-wrap {
+        background: #ECFDF5;
+        color: #10B981;
+    }
+
     .kpi-dismantle .kpi-icon-wrap {
         background: #FEF2F2;
         color: #EF4444;
     }
 
-    .kpi-text {}
+    .kpi-kendala .kpi-icon-wrap {
+        background: #FFF7ED;
+        color: #F97316;
+    }
+
+    .kpi-ont .kpi-icon-wrap {
+        background: #E6F0F0;
+        color: #0E7C7B;
+    }
+
+    .kpi-rate .kpi-icon-wrap {
+        background: #F3E8FF;
+        color: #8B5CF6;
+    }
+
+    .kpi-text {
+        overflow: hidden;
+        min-width: 0;
+    }
 
     .kpi-label {
-        font-size: 0.78rem;
+        font-size: 0.76rem;
+        font-weight: 500;
         color: #64748b;
         margin-bottom: 2px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
     }
 
     .kpi-value {
-        font-size: 1.6rem;
+        font-size: 1.35rem;
         font-weight: 700;
         color: #0f172a;
         line-height: 1;
@@ -450,34 +503,48 @@ $dismantle_count = $pdo->query("
                     <span class="db-date-badge"><?= ucfirst($tanggal) ?></span>
                 </div>
                 <div class="kpi-grid">
-                    <a href="<?= BASE_URL ?>pages/queue" class="kpi-card kpi-queue">
-                        <div class="kpi-icon-wrap"><i class="flaticon2-hourglass-1"></i></div>
-                        <div class="kpi-text">
-                            <div class="kpi-label">Queue Schedules</div>
-                            <div class="kpi-value" data-target="<?= (int)$queue_count['total'] ?>">0</div>
-                        </div>
-                    </a>
-                    <a href="<?= BASE_URL ?>pages/ikr" class="kpi-card kpi-install">
-                        <div class="kpi-icon-wrap"><i class="fas fa-wifi"></i></div>
-                        <div class="kpi-text">
-                            <div class="kpi-label">Active Installations</div>
-                            <div class="kpi-value" data-target="<?= (int)$ikr_count['total'] ?>">0</div>
-                        </div>
-                    </a>
-                    <a href="<?= BASE_URL ?>pages/service_report" class="kpi-card kpi-service">
+                    <a href="<?= BASE_URL ?>pages/ticketing/service/dashboard.php" class="kpi-card kpi-service">
                         <div class="kpi-icon-wrap"><i class="fas fa-tools"></i></div>
                         <div class="kpi-text">
-                            <div class="kpi-label">Active Services</div>
+                            <div class="kpi-label">Tiket Service (Hari Ini)</div>
                             <div class="kpi-value" data-target="<?= (int)$service_count['total'] ?>">0</div>
+                        </div>
+                    </a>
+                    <a href="<?= BASE_URL ?>pages/ticketing/instalasi/dashboard.php" class="kpi-card kpi-install">
+                        <div class="kpi-icon-wrap"><i class="fas fa-wifi"></i></div>
+                        <div class="kpi-text">
+                            <div class="kpi-label">Tiket Instalasi (Hari Ini)</div>
+                            <div class="kpi-value" data-target="<?= (int)$ikr_count['total'] ?>">0</div>
                         </div>
                     </a>
                     <a href="<?= BASE_URL ?>pages/dismantle" class="kpi-card kpi-dismantle">
                         <div class="kpi-icon-wrap"><i class="fas fa-trash-restore"></i></div>
                         <div class="kpi-text">
-                            <div class="kpi-label">Active Dismantles</div>
+                            <div class="kpi-label">Tiket Dismantle (Hari Ini)</div>
                             <div class="kpi-value" data-target="<?= (int)$dismantle_count['total'] ?>">0</div>
                         </div>
                     </a>
+                    <a href="<?= BASE_URL ?>pages/schedule/table_issue_report.php" class="kpi-card kpi-kendala">
+                        <div class="kpi-icon-wrap"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="kpi-text">
+                            <div class="kpi-label">Kendala Lapangan</div>
+                            <div class="kpi-value" data-target="<?= (int)$kendala_count['total'] ?>">0</div>
+                        </div>
+                    </a>
+                    <!-- <a href="<?= BASE_URL ?>pages/ont" class="kpi-card kpi-ont">
+                        <div class="kpi-icon-wrap"><i class="fas fa-box"></i></div>
+                        <div class="kpi-text">
+                            <div class="kpi-label">Stok ONT Ready</div>
+                            <div class="kpi-value" data-target="<?= (int)$ont_count['total'] ?>">0</div>
+                        </div>
+                    </a> -->
+                    <div class="kpi-card kpi-rate">
+                        <div class="kpi-icon-wrap"><i class="fas fa-chart-line"></i></div>
+                        <div class="kpi-text">
+                            <div class="kpi-label">Rate Selesai Hari Ini</div>
+                            <div class="kpi-value" data-target="<?= (int)$completion_rate ?>">0%</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="charts-row">
                     <div class="db-card">

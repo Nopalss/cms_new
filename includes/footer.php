@@ -94,9 +94,8 @@ require_once __DIR__ . '/config.php';
     var HOST_URL = "<?= BASE_URL ?>";
 </script>
 <!--begin::Global Theme Bundle(used by all pages)-->
-<script src="<?= BASE_URL ?>assets/plugins/global/plugins.bundle.js"></script>
-<!-- <script src="<?= BASE_URL ?>assets/plugins/custom/prismjs/prismjs.bundle.js"></script> -->
-<script src="<?= BASE_URL ?>assets/js/scripts.bundle.js"></script>
+<script src="<?= asset_ver('assets/plugins/global/plugins.bundle.js') ?>"></script>
+<script src="<?= asset_ver('assets/js/scripts.bundle.js') ?>"></script>
 
 
 <!--begin::Global Config(global config for global JS scripts)-->
@@ -799,6 +798,8 @@ $_SESSION['table'] = "";
         // Kosongkan input file agar tidak ikut terkirim
         inputGambar.value = "";
     }
+
+
 </script>
 <!--end::Page Scripts-->
 </body>

@@ -5,13 +5,13 @@ $tim_id  = $_SESSION['tim_id'] ?? '';
 $sql = "
 SELECT
     s.*,
-    c.location,
+    COALESCE(c.location, rm.location, '-') AS location,
     c.phone,
     c.phone_contact,
-    COALESCE(NULLIF(c.phone_contact, ''), c.phone) AS no_tlp,
-    c.name,
-    c.perumahan,
-    c.sharelock,
+    COALESCE(NULLIF(c.phone_contact, ''), c.phone, '-') AS no_tlp,
+    COALESCE(c.name, rm.nama, 'Infrastruktur Jaringan') AS name,
+    COALESCE(c.perumahan, rm.perumahan, '-') AS perumahan,
+    COALESCE(c.sharelock, rm.sharelock, '') AS sharelock,
     COALESCE(NULLIF(c.paket_internet, ''), reg.paket_internet) AS paket_internet,
     rm.server,
     rm.deskripsi_issue AS aduan_pelanggan,
@@ -33,7 +33,7 @@ FROM schedules s
 JOIN queue_scheduling q
 ON s.queue_id=q.queue_id
 
-JOIN customers c
+LEFT JOIN customers c
 ON q.netpay_id=c.netpay_id
 
 LEFT JOIN request_maintenance rm
@@ -1479,6 +1479,13 @@ endif; ?>
         });
       })
       .catch((err) => console.error('[FCM] Service Worker registration failed:', err));
+
+    messaging.onMessage((payload) => {
+      console.log('[FCM] Foreground push notification received:', payload);
+      const title = payload.notification?.title || payload.data?.title || '📌 Notifikasi Tugas';
+      const body  = payload.notification?.body  || payload.data?.body  || '';
+      showCustomFcmNotification(title, body, payload);
+    });
 
     function showCustomFcmNotification(title, body, payload) {
       function escapeHtml(str) {

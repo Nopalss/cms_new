@@ -50,11 +50,10 @@ try {
     // Menghitung total service dalam periode terpilih
     $sumSql = "SELECT COUNT(DISTINCT sr.srv_id) AS total
                 FROM service_reports sr
-                LEFT JOIN service_report_pic srp ON sr.srv_id = srp.srv_id
                 WHERE DATE(sr.created_at) BETWEEN :from AND :to";
 
     if ($_SESSION['role'] == 'teknisi') {
-        $sumSql .= " AND FIND_IN_SET(:tech_id, srp.tech_id) ";
+        $sumSql .= " AND EXISTS (SELECT 1 FROM service_report_pic srp WHERE srp.srv_id = sr.srv_id AND srp.tech_id = :tech_id) ";
     }
 
     $sumStmt = $pdo->prepare($sumSql);
@@ -70,38 +69,43 @@ try {
     ];
 
     // ================= DATA LIST =================
-    $sql = "SELECT sr.*, c.netpay_id, c.name, c.perumahan, 
+    $sql = "SELECT sr.*, 
+            COALESCE(NULLIF(TRIM(c.netpay_id),''), sr.netpay_id, '-') AS netpay_id, 
+            COALESCE(NULLIF(TRIM(c.name),''), rm.nama, 'Pelanggan') AS name, 
+            COALESCE(NULLIF(TRIM(c.perumahan),''), rm.perumahan, '-') AS perumahan, 
             SEC_TO_TIME(TIMESTAMPDIFF(SECOND,se.start_time,se.end_time)) AS durasi
             FROM service_reports sr 
             LEFT JOIN schedules se ON sr.schedule_id = se.schedule_id
-            LEFT JOIN service_report_pic srp ON sr.srv_id = srp.srv_id 
+            LEFT JOIN request_maintenance rm ON se.queue_id = rm.queue_id
             LEFT JOIN customers c ON sr.netpay_id = c.netpay_id 
             WHERE DATE(sr.created_at) BETWEEN :from AND :to";
 
     $params = [':from' => $from, ':to' => $to];
 
     if ($_SESSION['role'] == 'teknisi') {
-        $sql .= " AND FIND_IN_SET(:tech_id, srp.tech_id) ";
+        $sql .= " AND EXISTS (SELECT 1 FROM service_report_pic srp WHERE srp.srv_id = sr.srv_id AND srp.tech_id = :tech_id) ";
         $params[':tech_id'] = $_SESSION['id_karyawan'];
     }
 
     if (!empty($search)) {
         $sql .= " AND (
             sr.srv_id LIKE :search
-            OR sr.tanggal LIKE :search
-            OR sr.jam LIKE :search
+            OR sr.netpay_id LIKE :search
             OR c.netpay_id LIKE :search
+            OR c.name LIKE :search
+            OR rm.nama LIKE :search
+            OR c.perumahan LIKE :search
+            OR rm.perumahan LIKE :search
             OR sr.problem LIKE :search
             OR sr.action LIKE :search
             OR sr.part LIKE :search
-            OR sr.red_bef LIKE :search
-            OR sr.red_aft LIKE :search
+            OR sr.tanggal LIKE :search
             OR sr.keterangan LIKE :search
         )";
         $params[':search'] = "%$search%";
     }
 
-    $sql .= " GROUP BY sr.srv_id ORDER BY sr.created_at DESC";
+    $sql .= " ORDER BY sr.created_at DESC";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
